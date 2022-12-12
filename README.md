@@ -1,2 +1,2 @@
-# Wise Owl Solution - SQL-Server
-Solutions of Wise Owl SQL Server Exercises
+# Wise Owl SQL-Server Exercises Solutions
+Solutions and supporting files of Wise Owl SQL Server Exercises
