@@ -1415,10 +1415,10 @@ e1.EpisodeId full join tblDoctor d1 on e1.DoctorId=d1.DoctorId where DoctorName<
 didn't occur in Space, with their country names and categories. You can then show the 8 countries which had non-Space events in the same category as
 one of the Space events.*/
 use WorldEvents
-/*select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on tblEvent.CategoryID=
-tblCategory.CategoryID where CountryName='Space'
-select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on tblEvent.CategoryID=
-tblCategory.CategoryID where CountryName<>'Space'*/
+select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
+tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'
+select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
+tblEvent.CategoryID=tblCategory.CategoryID where CountryName<>'Space'
 --
 --
 --
@@ -1429,6 +1429,37 @@ tblCategory.CategoryID where CountryName<>'Space'*/
 
 --
 
+--PIVOTS
+
+--
+
+--TRIGGERS
+
+/*The aim of this exercise is to use a trigger to write any country changes made into a separate table. Here is what the table should show if you
+rename Vietnam to Viet Nam and then insert and delete the (to date) fictitious country OwlLand:*/
+use WorldEvents
+if not exists (select * from sysobjects where name='tblCountryChanges' and xtype='U')
+create table tblCountryChanges (CountryName varchar(100), Change varchar(100))
+go
+create or alter trigger trg_update on tblCountry after update as
+insert into tblCountryChanges (CountryName, Change) select CountryName, 'Previous Name' from deleted
+insert into tblCountryChanges (CountryName, Change) select CountryName, 'New Name' from inserted
+go
+create or alter trigger trg_insert on tblCountry after insert as
+insert into tblCountryChanges (CountryName, Change) select CountryName, 'Inserted' from inserted
+go
+create or alter trigger trg_delete on tblCountry after delete as
+insert into tblCountryChanges (CountryName, Change) select CountryName, 'Deleted' from deleted
+go
+
+update tblCountry set CountryName='Viet Nam' where CountryID=10
+insert into tblCountry (CountryName, ContinentID) select 'OwlLand', 3
+delete tblCountry where CountryName='OwlLand'
+
+select * from tblCountryChanges
+
+update tblCountry set CountryName='Vietnam' where CountryID=10
+truncate table tblCountryChanges
 
 use WorldEvents
 select top 1 * from tblCategory
