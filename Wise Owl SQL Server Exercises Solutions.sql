@@ -1359,8 +1359,8 @@ What to do																										Returns
 Get a list of those events which contain none of the letters in the word OWL									3 rows
 Use this to get a list of all of those events which take place in the countries for the events in list 1.		9 rows
 Get a third list of all of the events which share the same categories as any of the events in the second list.	116 rows*/
-use WorldEvents
-/*select EventName from tblEvent inner join tblCountry on tblEvent.CountryID=tblCountry.CountryID where CountryName in (select distinct CountryName from
+/*use WorldEvents
+select EventName from tblEvent te inner join tblCountry tc on te.CountryID=tc.CountryID where CountryName in (select distinct CountryName from
 tblCountry c inner join tblEvent e on c.CountryID=e.CountryID where EventName in (select EventName from tblEvent where EventName not like '%[owl]%'))*/
 --
 --
@@ -1405,20 +1405,16 @@ full join tblDoctor d on e.DoctorId=d.DoctorId where DoctorName='David Tennant' 
 select distinct EnemyName from tblEnemy ey1 full join tblEpisodeEnemy ee1 on ey1.EnemyId=ee1.EnemyId full join tblEpisode e1 on ee1.EpisodeId=
 e1.EpisodeId full join tblDoctor d1 on e1.DoctorId=d1.DoctorId where DoctorName<>'David Tennant'
 ) order by Title
---
---
---
---
---
 
 /*The aim of this exercise is to list out all the categories of events which occurred in the Space country. You'll then list all of the events which
 didn't occur in Space, with their country names and categories. You can then show the 8 countries which had non-Space events in the same category as
 one of the Space events.*/
 use WorldEvents
 select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
-tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'
+tblEvent.CategoryID=tblCategory.CategoryID except
 select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
-tblEvent.CategoryID=tblCategory.CategoryID where CountryName<>'Space'
+tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'
+
 --
 --
 --
@@ -1441,14 +1437,14 @@ use WorldEvents
 if not exists (select * from sysobjects where name='tblCountryChanges' and xtype='U')
 create table tblCountryChanges (CountryName varchar(100), Change varchar(100))
 go
-create or alter trigger trg_update on tblCountry after update as
+create or alter trigger trg_update_tblCountry on tblCountry after update as
 insert into tblCountryChanges (CountryName, Change) select CountryName, 'Previous Name' from deleted
 insert into tblCountryChanges (CountryName, Change) select CountryName, 'New Name' from inserted
 go
-create or alter trigger trg_insert on tblCountry after insert as
+create or alter trigger trg_insert_tblCountry on tblCountry after insert as
 insert into tblCountryChanges (CountryName, Change) select CountryName, 'Inserted' from inserted
 go
-create or alter trigger trg_delete on tblCountry after delete as
+create or alter trigger trg_delete_tblCountry on tblCountry after delete as
 insert into tblCountryChanges (CountryName, Change) select CountryName, 'Deleted' from deleted
 go
 
@@ -1460,6 +1456,37 @@ select * from tblCountryChanges
 
 update tblCountry set CountryName='Vietnam' where CountryID=10
 truncate table tblCountryChanges
+
+/*The aim of this exercise it to stop anyone deleting events which happened in the UK (country number 7). To do this create a trigger which operates
+on the tblEvent table.*/
+/*use WorldEvents
+go
+create or alter trigger trg_update_tblEvent on tblEvent instead of update as begin
+declare @EventID int, @CountryID int
+set @EventID=EventID, @CountryID=CountryID
+if @CountryID!=7
+delete from tblEvent where EventID=@EventID
+end*/
+--
+--
+--
+--
+--
+
+--ARCHIVED
+
+--The aim of this exercise is to be able to pass different table names to a select statement, to show different sets of rows.
+use WorldEvents
+go
+create or alter proc usp_ChangingTables @TableName varchar(max) as
+declare @SQL varchar(max)='select * from '+@TableName
+exec (@SQL)
+go
+exec usp_ChangingTables 'tblEvent'
+exec usp_ChangingTables 'tblCountry'
+exec usp_ChangingTables 'tblContinent'
+exec usp_ChangingTables 'tblCategory'
+
 
 use WorldEvents
 select top 1 * from tblCategory
