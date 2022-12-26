@@ -925,8 +925,10 @@ Roll back this transaction if more than 100 rows are affected (displaying a suit
 Commit it otherwise and show a list of all of the episodes, including the newly populated field.*/
 use DoctorWho
 alter table tblEpisode drop column if exists NumberEnemies
-begin tran
+go
 alter table tblEpisode add NumberEnemies int
+go
+begin tran
 declare @RowCount int=''
 update tblEpisode set NumberEnemies = (select count(*) from tblEpisodeEnemy ee where ee.EpisodeId=e.EpisodeId) from tblEpisode e
 set @RowCount = @@ROWCOUNT
@@ -1244,7 +1246,7 @@ tblContinent on tblCountry.ContinentID=tblContinent.ContinentID where ContinentN
 inner join tblContinent on tblCountry.ContinentID=tblContinent.ContinentID where ContinentName=@Continent and DoctorWho.dbo.udf_MonthName(MONTH(EventDate))
 =@Month) 'Number of Categories' from tblContinent where ContinentName=@Continent)
 go
-select * from udf_ContinentSummary('Europe','March')
+select * from udf_ContinentSummary('Asia','April')
 
 /*Write a function which takes two arguments:
 Argument	    Heading		                     Example
@@ -1409,12 +1411,11 @@ e1.EpisodeId full join tblDoctor d1 on e1.DoctorId=d1.DoctorId where DoctorName<
 /*The aim of this exercise is to list out all the categories of events which occurred in the Space country. You'll then list all of the events which
 didn't occur in Space, with their country names and categories. You can then show the 8 countries which had non-Space events in the same category as
 one of the Space events.*/
-use WorldEvents
+/*use WorldEvents
 select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
 tblEvent.CategoryID=tblCategory.CategoryID except
 select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
-tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'
-
+tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'*/
 --
 --
 --
@@ -1423,11 +1424,72 @@ tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'
 
 --DYNAMIC SQL
 
+--The aim of this exercise is to be able to pass different table names to a select statement, to show different sets of rows.
+use WorldEvents
+go
+create or alter proc usp_ChangingTables @TableName varchar(max) as
+declare @SQL varchar(max)='select * from '+@TableName
+exec (@SQL)
+go
+exec usp_ChangingTables 'tblEvent'
+exec usp_ChangingTables 'tblCountry'
+exec usp_ChangingTables 'tblContinent'
+exec usp_ChangingTables 'tblCategory'
+
+/*Create a procedure called usp_EpisodesSorted which takes two parameters:
+Parameter	What it does						Default value
+@SortColumn	The name of the column to sort by	EpisodeId
+@SortOrder	The order to sort by (ASC or DESC)	ASC
+Declare and build up a string variable called @sql which contains a SELECT command based on the value of these two parameters:
+You should now be able to list the Doctor Who episodes in different orders!*/
+use DoctorWho
+go
+create or alter proc usp_EpisodesSorted @SortColumn	varchar(25)='EpisodeId', @SortOrder	varchar(4)='asc' as
+declare @SQL varchar(max)='select * from tblEpisode order by '+@SortColumn+' '+@SortOrder
+exec (@SQL)
+go
+exec usp_EpisodesSorted 'EpisodeNumber', 'desc'
+
+/*Create a comma-delimited list variable containing all of the names of events that occurred in your decade of birth. Use LEFT to remove the
+extra comma, and QUOTENAME to add apostrophes. Now use this list to filter another select statement which shows all of (*) the information about
+those events from the event table. You will need to use dynamic SQL:*/
+/*use WorldEvents
+go
+declare @EventName varchar(max)=''
+select @EventName=@EventName+EventName+', ' from tblEvent where year(EventDate) between 1980 and 1989
+set @EventName=concat('''',replace(@EventName,', ',''','''),'''')
+--set @EventName=concat('(',left(@EventName,(len(@EventName)-3)),')')
+set @EventName=left(@EventName,(len(@EventName)-3))
+print @EventName
+--select * from tblEvent where EventName in (@EventName)*/
+--
+--
+--
+--
 --
 
 --PIVOTS
 
---
+/*Create a query to show for each episode the series number, year and episode id:
+Now store this in a CTE, and pivot it to show the number of episodes by year and series number for the first 5 series:*/
+use DoctorWho
+;with cte_YearlyEpisodes as
+(select year(EpisodeDate) 'EpisodeYear', SeriesNumber, EpisodeId from tblEpisode)
+select * from (select EpisodeYear, SeriesNumber, EpisodeId from cte_YearlyEpisodes) as p
+pivot (count(EpisodeID) for SeriesNumber in ([1],[2],[3],[4],[5])) as p1
+
+/*Create and set the value of a variable to hold the first word of each episode type in the tblEpisode table:
+Separately, write a query to show the first word of each episode type, along with the episode's doctor name and id, and pivot this to show the following:*/
+use DoctorWho
+drop table if exists #EpisodeTypeFirstWord
+select distinct left(EpisodeType,(charindex(' ',EpisodeType)-1)) 'EpisodeTypeFirstWord'
+into #EpisodeTypeFirstWord from tblEpisode order by EpisodeTypeFirstWord
+declare @EpisodeTypeFirstWord varchar(max)=''
+select @EpisodeTypeFirstWord=@EpisodeTypeFirstWord+cast(EpisodeTypeFirstWord as varchar)+'], [' from #EpisodeTypeFirstWord
+set @EpisodeTypeFirstWord='['+left(@EpisodeTypeFirstWord,len(@EpisodeTypeFirstWord)-3)
+select @EpisodeTypeFirstWord
+select * from (select DoctorName, left(EpisodeType,(charindex(' ',EpisodeType)-1)) 'EpisodeTypeFirstWord' from tblDoctor join tblEpisode on
+tblDoctor.DoctorId=tblEpisode.DoctorId) as bt pivot(count(EpisodeTypeFirstWord) for EpisodeTypeFirstWord in ([50th], [Autumn], [Christmas], [Easter], [Normal]) as pt
 
 --TRIGGERS
 
@@ -1447,7 +1509,6 @@ go
 create or alter trigger trg_delete_tblCountry on tblCountry after delete as
 insert into tblCountryChanges (CountryName, Change) select CountryName, 'Deleted' from deleted
 go
-
 update tblCountry set CountryName='Viet Nam' where CountryID=10
 insert into tblCountry (CountryName, ContinentID) select 'OwlLand', 3
 delete tblCountry where CountryName='OwlLand'
@@ -1455,18 +1516,14 @@ delete tblCountry where CountryName='OwlLand'
 select * from tblCountryChanges
 
 update tblCountry set CountryName='Vietnam' where CountryID=10
-truncate table tblCountryChanges
+drop table tblCountryChanges
 
 /*The aim of this exercise it to stop anyone deleting events which happened in the UK (country number 7). To do this create a trigger which operates
 on the tblEvent table.*/
 /*use WorldEvents
 go
 create or alter trigger trg_update_tblEvent on tblEvent instead of update as begin
-declare @EventID int, @CountryID int
-set @EventID=EventID, @CountryID=CountryID
-if @CountryID!=7
-delete from tblEvent where EventID=@EventID
-end*/
+declare @EventID int, @CountryID int*/
 --
 --
 --
@@ -1475,17 +1532,7 @@ end*/
 
 --ARCHIVED
 
---The aim of this exercise is to be able to pass different table names to a select statement, to show different sets of rows.
-use WorldEvents
-go
-create or alter proc usp_ChangingTables @TableName varchar(max) as
-declare @SQL varchar(max)='select * from '+@TableName
-exec (@SQL)
-go
-exec usp_ChangingTables 'tblEvent'
-exec usp_ChangingTables 'tblCountry'
-exec usp_ChangingTables 'tblContinent'
-exec usp_ChangingTables 'tblCategory'
+--
 
 
 use WorldEvents
