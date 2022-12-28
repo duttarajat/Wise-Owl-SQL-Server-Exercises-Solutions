@@ -1480,7 +1480,7 @@ pivot (count(EpisodeID) for SeriesNumber in ([1],[2],[3],[4],[5])) as p1
 
 /*Create and set the value of a variable to hold the first word of each episode type in the tblEpisode table:
 Separately, write a query to show the first word of each episode type, along with the episode's doctor name and id, and pivot this to show the following:*/
-use DoctorWho
+/*use DoctorWho
 drop table if exists #EpisodeTypeFirstWord
 select distinct left(EpisodeType,(charindex(' ',EpisodeType)-1)) 'EpisodeTypeFirstWord'
 into #EpisodeTypeFirstWord from tblEpisode order by EpisodeTypeFirstWord
@@ -1489,7 +1489,7 @@ select @EpisodeTypeFirstWord=@EpisodeTypeFirstWord+cast(EpisodeTypeFirstWord as 
 set @EpisodeTypeFirstWord='['+left(@EpisodeTypeFirstWord,len(@EpisodeTypeFirstWord)-3)
 select @EpisodeTypeFirstWord
 select * from (select DoctorName, left(EpisodeType,(charindex(' ',EpisodeType)-1)) 'EpisodeTypeFirstWord' from tblDoctor join tblEpisode on
-tblDoctor.DoctorId=tblEpisode.DoctorId) as bt pivot(count(EpisodeTypeFirstWord) for EpisodeTypeFirstWord in ([50th], [Autumn], [Christmas], [Easter], [Normal]) as pt
+tblDoctor.DoctorId=tblEpisode.DoctorId) as bt pivot(count(EpisodeTypeFirstWord) for EpisodeTypeFirstWord in ([50th], [Autumn], [Christmas], [Easter], [Normal]) as pt*/
 
 --TRIGGERS
 
@@ -1532,7 +1532,17 @@ declare @EventID int, @CountryID int*/
 
 --ARCHIVED
 
---
+/*Create a function (called udf_WeekDay?) to show the day of the week for any given date. Use your function to show the number of events for each day
+of the week*/
+use WorldEvents
+go
+create or alter function udf_WeekDay (@Date date) returns varchar(10) as
+begin
+return datename(WEEKDAY, @Date)
+end
+go
+select dbo.udf_WeekDay(EventDate) 'Day of Week', count(EventDate) 'Number of Events' from tblEvent group by dbo.udf_WeekDay(EventDate) order by
+'Number of Events' desc
 
 
 use WorldEvents
