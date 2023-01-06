@@ -1488,8 +1488,8 @@ declare @EpisodeTypeFirstWord varchar(max)=''
 select @EpisodeTypeFirstWord=@EpisodeTypeFirstWord+cast(EpisodeTypeFirstWord as varchar)+'], [' from #EpisodeTypeFirstWord
 set @EpisodeTypeFirstWord='['+left(@EpisodeTypeFirstWord,len(@EpisodeTypeFirstWord)-3)
 select @EpisodeTypeFirstWord
-select * from (select DoctorName, left(EpisodeType,(charindex(' ',EpisodeType)-1)) 'EpisodeTypeFirstWord' from tblDoctor join tblEpisode on
-tblDoctor.DoctorId=tblEpisode.DoctorId) as bt pivot(count(EpisodeTypeFirstWord) for EpisodeTypeFirstWord in ([50th], [Autumn], [Christmas], [Easter], [Normal]) as pt*/
+select * from (select DoctorName, left(EpisodeType,(charindex(' ',EpisodeType)-1)) [EpisodeTypeFirstWord] from tblDoctor join tblEpisode on
+tblDoctor.DoctorId=tblEpisode.DoctorId) bt pivot(count(EpisodeTypeFirstWord) for EpisodeTypeFirstWord in (@EpisodeTypeFirstWord)) pt*/
 
 --TRIGGERS
 
@@ -1532,6 +1532,17 @@ declare @EventID int, @CountryID int*/
 
 --ARCHIVED
 
+/*Create a query to show all the people with really long names. When you run your query a second time, it should crash because the temporary table
+#BigPeople already exists. Apply error trapping at the top of the query such that: Your query attempts to delete the table
+If it already exists, the table is deleted and your query prints out a message saying that this has happened
+If it didn't already exist, you get a message saying that nothing was deleted*/
+use Training
+if object_id('tempdb..#BigPeople') is not null begin drop table #BigPeople
+select 'Dropped #BigPeople' '#BigPeople Status' end else select '#BigPeople didnot exist' '#BigPeople Status'
+create table #BigPeople (PersonId int identity(1,1) primary key, FirstName varchar(50), LastName varchar(50))
+insert into #BigPeople (FirstName, LastName) select FirstName, LastName from tblPerson where len(FirstName)+len(LastName)>20
+select * from #BigPeople
+
 /*Create a function (called udf_WeekDay?) to show the day of the week for any given date. Use your function to show the number of events for each day
 of the week*/
 use WorldEvents
@@ -1544,30 +1555,47 @@ go
 select dbo.udf_WeekDay(EventDate) 'Day of Week', count(EventDate) 'Number of Events' from tblEvent group by dbo.udf_WeekDay(EventDate) order by
 'Number of Events' desc
 
+--
 
 use WorldEvents
-select top 1 * from tblCategory
-select top 1 * from tblContinent
-select top 1 * from tblContinentSummary
-select top 1 * from tblCountry
-select top 1 * from tblEvent
-select top 1 * from tblFamily
-select top 1 * from tblEventSummary
+select top 1 CategoryID, CategoryName from tblCategory
+select top 1 ContinentID, ContinentName, Summary from tblContinent
+select top 1 CountryID, CountryName, ContinentID from tblCountry
+select top 1 EventID, EventName, EventDetails, EventDate, CountryID, CategoryID from tblEvent
+
+select top 1 SummaryItem, CountEvents from tblEventSummary
+select top 1 ContinentName,[Countries in Continent],[Events in Continent],[Earliest Continent Event],[Latest Continent Event] from tblContinentSummary
+select top 1 FamilyID, FamilyName, ParentFamilyId from tblFamily
 
 use DoctorWho
-select top 1 * from tblAuthor
-select top 1 * from tblCompanion
-select top 1 * from tblDoctor
-select top 1 * from tblEnemy
-select top 1 * from tblEpisode
-select top 1 * from tblEpisodeCompanion
-select top 1 * from tblEpisodeEnemy
-select top 1 * from tblProductionCompany
+select top 1 AuthorId, AuthorName from tblAuthor
+select top 1 CompanionId, CompanionName, WhoPlayed from tblCompanion
+select top 1 DoctorId, DoctorNumber, DoctorName, BirthDate, FirstEpisodeDate, LastEpisodeDate from tblDoctor
+select top 1 EnemyId, EnemyName, Description from tblEnemy
+select top 1 EpisodeId, SeriesNumber, EpisodeNumber, EpisodeType, Title, EpisodeDate, AuthorId, DoctorId, Notes from tblEpisode
+select top 1 EpisodeCompanionId, EpisodeId, CompanionId from tblEpisodeCompanion
+select top 1 EpisodeEnemyId, EpisodeId, EnemyId from tblEpisodeEnemy
+select top 1 ProductionCompanyId, ProductionCompanyName, Abbreviation from tblProductionCompany
 
 use Books
-select * from tblAuthor
-select * from tblBook
-select * from tblGenre order by GenreID
+select AuthorId, FirstName, LastName, GenreId from tblAuthor
+select BookId, BookName, AuthorId from tblBook
+select GenreID, GenreName, Rating from tblGenre
 
 use Carnival
-select * from tblMenu
+select MenuId, MenuName, ParentMenuId, SortOrder, Tooltip, VisibleText, WebPage, FolderName from tblMenu
+
+use Training
+select top 1 CourseId, CourseName, NumberDays from tblCourse
+select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
+select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
+select OrgStatusId, OrgStatusName from tblOrgStatus
+select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
+select PersonStatusId, PersonStatusName from tblPersonStatus
+select top 1 ResourceId, ResourceName from tblResource
+
+SET STATISTICS IO ON
+SET STATISTICS TIME ON
+
+SET STATISTICS IO OFF
+SET STATISTICS TIME OFF
