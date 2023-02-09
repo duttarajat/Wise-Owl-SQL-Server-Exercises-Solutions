@@ -1538,7 +1538,7 @@ If it already exists, the table is deleted and your query prints out a message s
 If it didn't already exist, you get a message saying that nothing was deleted*/
 use Training
 if object_id('tempdb..#BigPeople') is not null begin drop table #BigPeople
-select 'Dropped #BigPeople' '#BigPeople Status' end else select '#BigPeople didnot exist' '#BigPeople Status'
+select 'Dropped #BigPeople' '#BigPeople Status' end else select '#BigPeople did not exist' '#BigPeople Status'
 create table #BigPeople (PersonId int identity(1,1) primary key, FirstName varchar(50), LastName varchar(50))
 insert into #BigPeople (FirstName, LastName) select FirstName, LastName from tblPerson where len(FirstName)+len(LastName)>20
 select * from #BigPeople
@@ -1578,7 +1578,7 @@ select top 1 EpisodeEnemyId, EpisodeId, EnemyId from tblEpisodeEnemy
 select top 1 ProductionCompanyId, ProductionCompanyName, Abbreviation from tblProductionCompany
 
 use Books
-select AuthorId, FirstName, LastName, GenreId from tblAuthor
+select AuthorId, FirstName, LastName from tblAuthor
 select BookId, BookName, AuthorId from tblBook
 select GenreID, GenreName, Rating from tblGenre
 
