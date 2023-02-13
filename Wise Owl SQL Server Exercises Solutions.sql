@@ -1284,6 +1284,7 @@ select (select count(Information) from dbo.udf_CCC('a')) 'A_results', (select co
 
 --The aim of this exercise is to show the number of events whose descriptions contain the words this and/or that:
 use WorldEvents
+go
 with cte_ThisAndThat (IfThis, IfThat, [Number of Events]) as
 (select 0 'IfThis', 0 'IfThat', (select count(EventId) from tblEvent where EventDetails not like '%this%' and EventDetails not like '%that%')
 'Number of Events' union all
@@ -1411,11 +1412,9 @@ e1.EpisodeId full join tblDoctor d1 on e1.DoctorId=d1.DoctorId where DoctorName<
 /*The aim of this exercise is to list out all the categories of events which occurred in the Space country. You'll then list all of the events which
 didn't occur in Space, with their country names and categories. You can then show the 8 countries which had non-Space events in the same category as
 one of the Space events.*/
-/*use WorldEvents
-select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
-tblEvent.CategoryID=tblCategory.CategoryID except
-select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
-tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space'*/
+use WorldEvents
+select CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
+tblEvent.CategoryID=tblCategory.CategoryID where CountryName<>'Space'
 --
 --
 --
@@ -1552,20 +1551,50 @@ begin
 return datename(WEEKDAY, @Date)
 end
 go
-select dbo.udf_WeekDay(EventDate) 'Day of Week', count(EventDate) 'Number of Events' from tblEvent group by dbo.udf_WeekDay(EventDate) order by
+select dbo.udf_WeekDay(EventDate) 'Day of Week', count(EventDate) 'Number of Events' from tblEvent group by cube (dbo.udf_WeekDay(EventDate)) order by
 'Number of Events' desc
 
---
+--Create a function called ufn_TableCourses to return a table of all of the courses which start and finish between two specified dates
+use Training
+go
+create or alter function ufn_TableCourses (@SDate datetime2, @EDate datetime2) returns table as return
+select ScheduleId, CourseName, StartDate from tblCourse join tblSchedule on tblCourse.CourseId=tblSchedule.CourseId where StartDate between @SDate and @EDate
+go
+select * from ufn_TableCourses ('01/01/2010', '01/31/2010') order by StartDate
+
+/* Create a query to list out the following columns from the tblEvent table: EventName, EventDate
+Your rows should appear in date order, with the most recent event coming first.*/
+use HistoricalEvents
+go
+select EventName, EventDate from tblEvent order by EventDate desc
+
+
+
+use HistoricalEvents
+select top 3 ContinentId, ContinentName from tblContinent
+select top 3 CountryId, CountryName, ContinentId from tblCountry
+select top 3 EventId, EventName, EventDate, Description, CountryId from tblEvent
 
 use WorldEvents
 select top 1 CategoryID, CategoryName from tblCategory
 select top 1 ContinentID, ContinentName, Summary from tblContinent
 select top 1 CountryID, CountryName, ContinentID from tblCountry
 select top 1 EventID, EventName, EventDetails, EventDate, CountryID, CategoryID from tblEvent
-
 select top 1 SummaryItem, CountEvents from tblEventSummary
 select top 1 ContinentName,[Countries in Continent],[Events in Continent],[Earliest Continent Event],[Latest Continent Event] from tblContinentSummary
 select top 1 FamilyID, FamilyName, ParentFamilyId from tblFamily
+
+use Training
+select top 1 CourseId, CourseName, NumberDays from tblCourse
+select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
+select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
+select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
+select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
+select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
+select top 1 ResourceId, ResourceName from tblResource
+select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
+select top 1 SectorId, SectorName from tblSector
+select top 1 TrainerId, TrainerName from tblTrainer
 
 use DoctorWho
 select top 1 AuthorId, AuthorName from tblAuthor
@@ -1584,18 +1613,3 @@ select GenreID, GenreName, Rating from tblGenre
 
 use Carnival
 select MenuId, MenuName, ParentMenuId, SortOrder, Tooltip, VisibleText, WebPage, FolderName from tblMenu
-
-use Training
-select top 1 CourseId, CourseName, NumberDays from tblCourse
-select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
-select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
-select OrgStatusId, OrgStatusName from tblOrgStatus
-select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
-select PersonStatusId, PersonStatusName from tblPersonStatus
-select top 1 ResourceId, ResourceName from tblResource
-
-SET STATISTICS IO ON
-SET STATISTICS TIME ON
-
-SET STATISTICS IO OFF
-SET STATISTICS TIME OFF
