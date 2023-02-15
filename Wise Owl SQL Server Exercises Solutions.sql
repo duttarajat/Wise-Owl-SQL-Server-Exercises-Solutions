@@ -19,8 +19,8 @@ select top 5 EventName What, EventDetails Details from tblEvent order by EventDa
 
 --Create a query which uses two separate SELECT statements to show the first and last 2 events in date order from the tblEvent table:
 use WorldEvents
-select top 2 EventName What, EventDate [When] from tblEvent order by EventDate
-select top 2 EventName What, EventDate [When] from tblEvent order by EventDate desc
+select top 2 EventName 'What', EventDate 'When' from tblEvent order by EventDate
+select top 2 EventName 'What', EventDate 'When' from tblEvent order by EventDate desc
 
 --SETTING CRITERIA USING WHERE
 
@@ -1068,6 +1068,8 @@ update tblAuthor set GenreId=2 where AuthorId=2
 update tblAuthor set GenreId=1 where AuthorId=3
 select FirstName+' '+LastName 'Author', GenreName 'Genre' from tblAuthor inner join tblGenre on tblAuthor.GenreId=tblGenre.GenreID
 
+--TEMPORARY TABLES AND TABLE VARIABLES
+
 --The aim of this exercise is to create a temporary table called #Characters containing all of the doctors, companions and enemies in the database.
 use DoctorWho
 drop table if exists #tblCharacters
@@ -1075,6 +1077,7 @@ select CompanionId  'CharacterId', CompanionName 'CharacterName', 'Companion' 'C
 set identity_insert #tblCharacters on
 insert into #tblCharacters (CharacterId, CharacterName, CharacterType) select DoctorId, DoctorName, 'Doctor' from tblDoctor
 insert into #tblCharacters (CharacterId, CharacterName, CharacterType) select EnemyId, EnemyName, 'Enemy' from tblEnemy
+set identity_insert #tblCharacters off
 select * from #tblCharacters order by CharacterName desc
 
 --The aim of this exercise is to put all of the Doctors, companions and enemies into a single table variable called @characters.
@@ -1565,24 +1568,78 @@ select * from ufn_TableCourses ('01/01/2010', '01/31/2010') order by StartDate
 /* Create a query to list out the following columns from the tblEvent table: EventName, EventDate
 Your rows should appear in date order, with the most recent event coming first.*/
 use HistoricalEvents
-go
 select EventName, EventDate from tblEvent order by EventDate desc
 
+--Create a query using an inner join and table aliases to list out the non-European countries.
+use HistoricalEvents
+select CountryName, ContinentName from tblCountry cy join tblContinent ct on cy.ContinentId=ct.ContinentId where ContinentName<>'Europe'
+
+--Create a query to show the number of events for each country (with the most "eventful" country coming at the top of the list)
+use HistoricalEvents
+select CountryName 'Country', count(tblEvent.EventName) 'NumberEvents' from tblCountry
+join tblEvent on tblCountry.CountryId=tblEvent.CountryId group by CountryName order by NumberEvents desc
+
+/*Create a stored procedure called usp_WebsitesByCategory which takes a single parameter - the name of a category - and displays all of the websites
+which belong to that category.*/
+use Websites
+go
+if exists (select name from sys.objects where type='P' and name='usp_WebsitesByCategory')
+drop proc usp_WebsitesByCategory
+go
+create proc usp_WebsitesByCategory (@WebsiteName varchar(100)) as
+select Name 'Name of website', Category from Data_at_14_Jan_2010 where Category=@WebsiteName order by 'Name of website'
+go
+exec usp_WebsitesByCategory[Search engine]
+exec usp_WebsitesByCategory[Blogs]
+exec usp_WebsitesByCategory[Finance]
+
+/*We want to create a query which shows all companies which either are in the retail sector or which have more than 12 people working there.
+To do this, first select all of the companies in the retail sector (there are only 2) into a new temporary table called #Org:
+Now add code to insert all companies employing more than 12 people into the same table (you could use a subquery to do this):
+Select all of the records from the temporary table that you've compiled.*/
+use Training
+go
+drop table if exists #Org
+select OrgId, OrgName into #Org from tblOrg join tblSector on tblOrg.SectorId=tblSector.SectorId where SectorName='Retail'
+insert into #Org select o.OrgId, OrgName from tblOrg o where (select count(PersonId) from tblPerson p where p.OrgId=o.OrgId) >12
+select OrgId, OrgName from #Org order by OrgId
+
+/*Create a new query, and within this create a view called vw_SingleYear to show all those events occurring in 2000. Execute this query, then right-click 
+on your Views to refresh them. You should now see your new view! Run this view - it should show 8 events. Right-click on the view to modify its design,
+and use the View Design window to change the criteria so that you show the events in 2001 instead (there should be 7 of them).*/
+use HistoricalEvents
+go
+create or alter view vw_SingleYear as select EventName, EventDate from tblEvent where year(EventDate)=2000
+go
+select * from vw_SingleYear
+
+/*Create a function called udf_EndDate which takes in: The start date of a course; and The number of days it lasts. Your function should then return the
+end date of the course. Incorporate your function within a query to show the start and end dates of all courses which start and end within January 2010.*/
+use Training
+go
+create or alter function udf_EndDate (@SDate date, @NoDays int) returns date as 
+begin
+return dateadd(day,@NoDays-1,@SDate)
+end
+go
+select CourseName 'Course Name', convert(varchar,StartDate,103) 'Start Date', convert(varchar,dbo.udf_EndDate(StartDate,NumberDays),103) 'End Date'
+from tblSchedule join tblCourse on tblSchedule.CourseId=tblCourse.CourseId where year(StartDate)=2010 and month(StartDate)=1
+
+--Create a query to show the name of each event, together with the length of its description, sorted so that the longest description appears first
+use HistoricalEvents
+select EventName, EventDate, len(Description) 'Length of Description' from tblEvent order by 'Length of Description' desc
+
+/*Create the following query, using:
+CONVERT to convert the date of each event to a more readable format; and
+DATEDIFF to show the difference between each event's date and today in years*/
+use HistoricalEvents
+select EventName, convert(varchar,EventDate,103) 'Date of Event', datediff(year,EventDate,getdate()) 'Years Ago' from tblEvent order by EventDate desc
 
 
 use HistoricalEvents
-select top 3 ContinentId, ContinentName from tblContinent
-select top 3 CountryId, CountryName, ContinentId from tblCountry
-select top 3 EventId, EventName, EventDate, Description, CountryId from tblEvent
-
-use WorldEvents
-select top 1 CategoryID, CategoryName from tblCategory
-select top 1 ContinentID, ContinentName, Summary from tblContinent
-select top 1 CountryID, CountryName, ContinentID from tblCountry
-select top 1 EventID, EventName, EventDetails, EventDate, CountryID, CategoryID from tblEvent
-select top 1 SummaryItem, CountEvents from tblEventSummary
-select top 1 ContinentName,[Countries in Continent],[Events in Continent],[Earliest Continent Event],[Latest Continent Event] from tblContinentSummary
-select top 1 FamilyID, FamilyName, ParentFamilyId from tblFamily
+select top 4 ContinentId, ContinentName from tblContinent
+select top 4 CountryId, CountryName, ContinentId from tblCountry
+select top 4 EventId, EventName, EventDate, Description, CountryId from tblEvent
 
 use Training
 select top 1 CourseId, CourseName, NumberDays from tblCourse
@@ -1595,6 +1652,26 @@ select top 1 ResourceId, ResourceName from tblResource
 select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
 select top 1 SectorId, SectorName from tblSector
 select top 1 TrainerId, TrainerName from tblTrainer
+
+use WorldEvents
+select top 1 CategoryID, CategoryName from tblCategory
+select top 1 ContinentID, ContinentName, Summary from tblContinent
+select top 1 CountryID, CountryName, ContinentID from tblCountry
+select top 1 EventID, EventName, EventDetails, EventDate, CountryID, CategoryID from tblEvent
+select top 1 SummaryItem, CountEvents from tblEventSummary
+select top 1 ContinentName,[Countries in Continent],[Events in Continent],[Earliest Continent Event],[Latest Continent Event] from tblContinentSummary
+select top 1 FamilyID, FamilyName, ParentFamilyId from tblFamily
+
+use Websites
+select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
+CategoryId from Data_at_14_Jan_2010
+select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
+select top 1 CategoryId, CategoryName from tblCategory
+select top 1 CompanyId, CompanyName from tblCompany
+select top 1 CountryId, CountryName from tblCountry
+select top 1 DomainId, DomainName from tblDomain
+select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
+select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
 
 use DoctorWho
 select top 1 AuthorId, AuthorName from tblAuthor
