@@ -1635,11 +1635,85 @@ DATEDIFF to show the difference between each event's date and today in years*/
 use HistoricalEvents
 select EventName, convert(varchar,EventDate,103) 'Date of Event', datediff(year,EventDate,getdate()) 'Years Ago' from tblEvent order by EventDate desc
 
+--Use a left outer join to show all of the continents with no matching countries
+use HistoricalEvents
+select distinct ContinentName 'Continent' from tblContinent left join tblCountry on tblContinent.ContinentId=tblCountry.ContinentId
+group by ContinentName having count(CountryName)=0
+
+/*Create a query listing out the event date and event name for all German events (ie for all events where the CountryId equals 7)
+Now amend your WHERE clause so that you only see events which took place in Germany in the 1940s (ie where the EventDate column lies between 
+1st January 1940 and 31st December 1949)*/
+use HistoricalEvents
+select EventDate, EventName from tblEvent where CountryId=7
+select EventDate, EventName from tblEvent where CountryId=7 and (year(EventDate) between 1940 and 1949)
+
+--Write a query which uses a cursor to step through the trainers one by one in alphabetical order, printing out the details for each
+--use Training
+--
+--
+--
+--
+--
+
+/*Design a view to show all of the events occurring in Africa, in date order. Run your view - it should return 3 events only. Save this view as vw_Africa.
+Right-click on the view to script it to a new window. Change the script in two ways:
+Firstly, so that it creates a new view called vw_AfricaAsia, rather than altering the existing one; and
+Secondly, so that it shows the events in Africa or Asia. Run this script, then close down its window. 
+Refresh your list of views, and run your new vw_AfricaAsia view to show that it returns 23 events.*/
+use HistoricalEvents
+go
+create or alter view vw_Africa as
+select top 100 percent EventName, EventDate from tblEvent join tblCountry on tblEvent.CountryId=tblCountry.CountryId join tblContinent on tblCountry.ContinentId=
+tblContinent.ContinentId where ContinentName='Africa' order by EventDate
+go
+select * from vw_Africa
+select * from vw_AfricaAsia
+
+/*Create a query which lists out the top 10 websites in the UK (ie ordered by AlexaRankUk, where the AlexaRankUk column is not null)
+Now create a stored procedure from this query called usp_ListTopWebsites. Execute your stored procedure to check that it gives the same answer.
+Alter your stored procedure (change the word CREATE to ALTER) so that it lists out the top 5 websites, not the top 10.*/
+use Websites
+go
+create or alter proc usp_ListTopWebsites as
+select top 10 WebsiteName 'Website', AlexaRankUk 'Rank' from tblWebsite where AlexaRankUk is not null order by AlexaRankUk
+go
+exec usp_ListTopWebsites
+go
+alter proc usp_ListTopWebsites as
+select top 5 WebsiteName 'Website', AlexaRankUk 'Rank' from tblWebsite where AlexaRankUk is not null order by AlexaRankUk
+go
+exec usp_ListTopWebsites
+go
+
+--Create a stored procedure called usp_EventsBetweenDates, to list all of the events between two given dates.
+use HistoricalEvents
+go
+create or alter proc usp_EventsBetweenDates (@Sdate date, @EDate date) as
+select EventName 'Name of Event', convert(varchar,EventDate,103) 'Date of Event' from tblEvent where EventDate between @Sdate and @EDate
+go
+exec usp_EventsBetweenDates '01-01-1970', '12/31/1970'
+go
+
+--Create a query/subquery showing all of the events which happened after the last European Union event.
+use HistoricalEvents
+select EventName from tblEvent where EventDate > (select max(EventDate) from tblEvent join tblCountry on tblEvent.CountryId=tblCountry.CountryId where 
+CountryName='European Union')
 
 use HistoricalEvents
 select top 4 ContinentId, ContinentName from tblContinent
 select top 4 CountryId, CountryName, ContinentId from tblCountry
 select top 4 EventId, EventName, EventDate, Description, CountryId from tblEvent
+
+use Websites
+select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
+CategoryId from Data_at_14_Jan_2010
+select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
+select top 1 CategoryId, CategoryName from tblCategory
+select top 1 CompanyId, CompanyName from tblCompany
+select top 1 CountryId, CountryName from tblCountry
+select top 1 DomainId, DomainName from tblDomain
+select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
+select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
 
 use Training
 select top 1 CourseId, CourseName, NumberDays from tblCourse
@@ -1661,17 +1735,6 @@ select top 1 EventID, EventName, EventDetails, EventDate, CountryID, CategoryID 
 select top 1 SummaryItem, CountEvents from tblEventSummary
 select top 1 ContinentName,[Countries in Continent],[Events in Continent],[Earliest Continent Event],[Latest Continent Event] from tblContinentSummary
 select top 1 FamilyID, FamilyName, ParentFamilyId from tblFamily
-
-use Websites
-select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
-CategoryId from Data_at_14_Jan_2010
-select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
-select top 1 CategoryId, CategoryName from tblCategory
-select top 1 CompanyId, CompanyName from tblCompany
-select top 1 CountryId, CountryName from tblCountry
-select top 1 DomainId, DomainName from tblDomain
-select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
-select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
 
 use DoctorWho
 select top 1 AuthorId, AuthorName from tblAuthor
