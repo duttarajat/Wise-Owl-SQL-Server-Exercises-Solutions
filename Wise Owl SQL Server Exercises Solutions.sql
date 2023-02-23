@@ -51,7 +51,7 @@ use WorldEvents
 select EventName, EventDetails, EventDate from tblEvent where (CountryID in (8,22,30,35) or EventDetails like '% Water %' or CategoryID=4)
 
 select EventName, EventDetails, EventDate from tblEvent where (CountryID in (8,22,30,35) or EventDetails like '% Water %' or CategoryID=4)
-and YEAR(EventDate)>1970
+and YEAR(EventDate)=1970
 
 --Events which aren't in the Transport category (number 14), but which nevertheless include the text Train in the EventDetails column.
 use WorldEvents
@@ -805,7 +805,7 @@ select dbo.udf_EpisodeDescription(Title) 'Episode Type', count(Title) 'Number of
 --Strangely there is no function that can return the name of a month when given a number 1 to 12. Luckily for you that is exactly what we will do:
 use DoctorWho
 go
-create or alter function udf_MonthName (@MonthNo int) returns varchar(max) as begin return datename(m,'2222-'+CAST(@MonthNo as varchar(2))+'-01') end
+create or alter function udf_MonthName (@MonthNo int) returns varchar(10) as begin return datename(m,'2222-'+CAST(@MonthNo as varchar(2))+'-01') end
 go
 declare @i int=1 while @i<=12 begin print dbo.udf_MonthName(@i) set @i=@i+1 end
 
@@ -1249,7 +1249,7 @@ tblContinent on tblCountry.ContinentID=tblContinent.ContinentID where ContinentN
 inner join tblContinent on tblCountry.ContinentID=tblContinent.ContinentID where ContinentName=@Continent and DoctorWho.dbo.udf_MonthName(MONTH(EventDate))
 =@Month) 'Number of Categories' from tblContinent where ContinentName=@Continent)
 go
-select * from udf_ContinentSummary('Asia','April')
+select * from udf_ContinentSummary('Europe','May')
 
 /*Write a function which takes two arguments:
 Argument	    Heading		                     Example
@@ -1430,7 +1430,7 @@ tblEvent.CategoryID=tblCategory.CategoryID where CountryName<>'Space'
 use WorldEvents
 go
 create or alter proc usp_ChangingTables @TableName varchar(max) as
-declare @SQL varchar(max)='select * from '+@TableName
+declare @SQL varchar(max)='select * from '+@TableName --+convert(varchar(20), getdate(),103)
 exec (@SQL)
 go
 exec usp_ChangingTables 'tblEvent'
@@ -1699,10 +1699,114 @@ use HistoricalEvents
 select EventName from tblEvent where EventDate > (select max(EventDate) from tblEvent join tblCountry on tblEvent.CountryId=tblCountry.CountryId where 
 CountryName='European Union')
 
+/*The aim of this exercise is to create a table variable holding all of those course ids where the course is either:
+About C#; or Given by Gabriella Montez (the techiest trainer). To do this, first declare a table variable called @TechieCourses to hold one column only - 
+each course's ScheduleId. Insert into this table all of those courses which have C# in the course name. Now insert into the same table all those courses
+where the TrainerIds column contains number 2936 (that's Gabriella). To do this, add a comma to the start and end of each of the things you're comparing.
+Create a SELECT statement joining your temporary table to the table of courses to show your results in course date order.*/
+use Training
+declare @TechieCourses table (CourseID int)
+insert into @TechieCourses select CourseId from tblCourse where CourseName like '%C#' union
+select tblCourse.CourseId from tblCourse join tblSchedule on tblCourse.CourseId=tblSchedule.CourseId where TrainerIds like '%2936%'
+select * from @TechieCourses
+
+--Create a query to show a list of the countries in the tblCountry table in reverse alphabetical order. Where a country has no continent id, replace this with 0
+use HistoricalEvents
+select CountryId, CountryName, isnull(ContinentId,0) ContinentId from tblCountry order by CountryName desc
+--OR
+select CountryId, CountryName, coalesce(ContinentId,0) ContinentId from tblCountry order by CountryName desc
+
+/*Create a query to show the ids of the people who have attended 6 or more courses
+Now turn this into a longer query to show the course names that these people have attended, using a CTE*/
+use Training
+;with cteImpPeople as (
+select tblPerson.Personid from tblPerson join tblDelegate on tblPerson.Personid=tblDelegate.PersonId group by tblPerson.Personid having count(DelegateId)>5)
+select cteImpPeople.Personid, DelegateId, CourseName from cteImpPeople join tblDelegate on cteImpPeople.Personid=tblDelegate.PersonId join tblSchedule on
+tblDelegate.ScheduleId=tblSchedule.ScheduleId join tblCourse on tblSchedule.CourseId=tblCourse.CourseId
+
+--Write out a SELECT statement to list out the names from tblDoctor in date of birth order
+use DoctorWho
+select DoctorId, DoctorName, BirthDate from tblDoctor order by BirthDate
+
+/*Create a simple query to show the number of people who still work at their companies. Now, by declaring and using two variables (called @NumberCurrent and
+@NumberObsolete) create a query to show how many people there are in the database for each of the two statuses - Current and Obsolete*/
+use Training
+declare @NumberCurrent int, @NumberObsolete int
+select @NumberCurrent=count(*) from tblPerson join tblPersonStatus on tblPerson.PersonStatusId=tblPersonStatus.PersonStatusId where PersonStatusName='Current'
+select @NumberObsolete=count(*) from tblPerson join tblPersonStatus on tblPerson.PersonStatusId=tblPersonStatus.PersonStatusId where PersonStatusName='Obsolete'
+print 'Left: '+cast(@NumberObsolete as varchar)+', Current: '+cast(@NumberCurrent as varchar)
+
+--Import the query called Extra text function. If you try running this query, it falls over - that's because the ufn_ExtraText function doesn't yet exist!
+use HistoricalEvents
+go
+create or alter function ufn_ExtraText (@EventName varchar(510), @Description varchar(510)) returns varchar(1025) as
+begin
+return (case when len(@Description)>len(@EventName) then concat(@EventName,': ',@Description) else @Description end)
+end
+go
+select EventName, Description, dbo.ufn_ExtraText(EventName,Description) 'Extra Text' from tblEvent order by 'Extra Text' desc
+
+--Create a function called ufn_NiceDate to return a neatly formatted date: Your function should format dates as DAYNAME DAYNUMBER MONTHNAME YEARNUMBER
+use HistoricalEvents
+go
+create or alter function ufn_NiceDate (@IDate date) returns varchar(max) as
+begin
+return datename(weekday,@IDate)+' '+cast(datepart(day,@IDate) as varchar)+' '+datename(month,@IDate)+' '+cast(datepart(year,@IDate) as varchar)
+end
+go
+select EventName, EventDate, dbo.ufn_NiceDate(EventDate) 'Nice Date' from tblEvent order by EventDate desc
+
+/*The aim of this exercise is to create a temporary table of all of the actors and directors born in 1969. To do this, first create a command to select all of the actors born in 1969
+into a new temporary table. Now add a command to insert all of the directors born in 1969 into the temporary table.*/
+use Movies
+drop table if exists #FlowerChildren
+create table #FlowerChildren (FlowerChildName nvarchar(510), Profession varchar(10), DOB datetime)
+insert into #FlowerChildren select ActorName, 'Actor', ActorDOB from tblActor where year(ActorDOB)=1969
+insert into #FlowerChildren select DirectorName, 'Director', DirectorDOB from tblDirector where year(DirectorDOB)=1969
+select * from #FlowerChildren order by DOB
+--OR Simply using SET operation:
+use Movies
+select ActorName 'FlowerChildName', 'Actor' 'Profession', ActorDOB 'DOB' from tblActor where year(ActorDOB)=1969 union
+select DirectorName, 'Director', DirectorDOB from tblDirector where year(DirectorDOB)=1969 order by DOB
+
+--View Schema of all DBs
+use Movies
+select top 1 ActorID, ActorName, ActorDOB, ActorGender from tblActor
+select top 1 CastID, CastFilmID, CastActorID, CastCharacterName from tblCast
+select top 1 CertificateID, CertificateName from tblCertificate
+select top 1 CountryID, CountryName from tblCountry
+select top 1 DirectorID, DirectorName, DirectorDOB, DirectorGender from tblDirector
+select top 1 FilmID, FilmName, FilmReleaseDate, FilmDirectorID, FilmLanguageID, FilmCountryID, FilmStudioID, FilmSynopsis, FilmRunTimeMinutes, FilmCertificateID, FilmBudgetDollars,
+FilmBoxOfficeDollars, FilmOscarNominations, FilmOscarWins from tblFilm
+select top 1 LanguageID, LanguageName from tblLanguage
+select top 1 StudioID, StudioName from tblStudio
+
 use HistoricalEvents
 select top 4 ContinentId, ContinentName from tblContinent
 select top 4 CountryId, CountryName, ContinentId from tblCountry
 select top 4 EventId, EventName, EventDate, Description, CountryId from tblEvent
+
+use Training
+select top 1 CourseId, CourseName, NumberDays from tblCourse 
+select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
+select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
+select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
+select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
+select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
+select top 1 ResourceId, ResourceName from tblResource
+select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
+select top 1 SectorId, SectorName from tblSector
+select top 1 TrainerId, TrainerName from tblTrainer
+
+use DoctorWho
+select top 1 AuthorId, AuthorName from tblAuthor
+select top 1 CompanionId, CompanionName, WhoPlayed from tblCompanion
+select top 1 DoctorId, DoctorNumber, DoctorName, BirthDate, FirstEpisodeDate, LastEpisodeDate from tblDoctor
+select top 1 EnemyId, EnemyName, Description from tblEnemy
+select top 1 EpisodeId, SeriesNumber, EpisodeNumber, EpisodeType, Title, EpisodeDate, AuthorId, DoctorId, Notes from tblEpisode
+select top 1 EpisodeCompanionId, EpisodeId, CompanionId from tblEpisodeCompanion
+select top 1 EpisodeEnemyId, EpisodeId, EnemyId from tblEpisodeEnemy
+select top 1 ProductionCompanyId, ProductionCompanyName, Abbreviation from tblProductionCompany
 
 use Websites
 select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
@@ -1715,18 +1819,6 @@ select top 1 DomainId, DomainName from tblDomain
 select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
 select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
 
-use Training
-select top 1 CourseId, CourseName, NumberDays from tblCourse
-select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
-select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
-select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
-select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
-select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
-select top 1 ResourceId, ResourceName from tblResource
-select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
-select top 1 SectorId, SectorName from tblSector
-select top 1 TrainerId, TrainerName from tblTrainer
-
 use WorldEvents
 select top 1 CategoryID, CategoryName from tblCategory
 select top 1 ContinentID, ContinentName, Summary from tblContinent
@@ -1735,16 +1827,6 @@ select top 1 EventID, EventName, EventDetails, EventDate, CountryID, CategoryID 
 select top 1 SummaryItem, CountEvents from tblEventSummary
 select top 1 ContinentName,[Countries in Continent],[Events in Continent],[Earliest Continent Event],[Latest Continent Event] from tblContinentSummary
 select top 1 FamilyID, FamilyName, ParentFamilyId from tblFamily
-
-use DoctorWho
-select top 1 AuthorId, AuthorName from tblAuthor
-select top 1 CompanionId, CompanionName, WhoPlayed from tblCompanion
-select top 1 DoctorId, DoctorNumber, DoctorName, BirthDate, FirstEpisodeDate, LastEpisodeDate from tblDoctor
-select top 1 EnemyId, EnemyName, Description from tblEnemy
-select top 1 EpisodeId, SeriesNumber, EpisodeNumber, EpisodeType, Title, EpisodeDate, AuthorId, DoctorId, Notes from tblEpisode
-select top 1 EpisodeCompanionId, EpisodeId, CompanionId from tblEpisodeCompanion
-select top 1 EpisodeEnemyId, EpisodeId, EnemyId from tblEpisodeEnemy
-select top 1 ProductionCompanyId, ProductionCompanyName, Abbreviation from tblProductionCompany
 
 use Books
 select AuthorId, FirstName, LastName from tblAuthor
