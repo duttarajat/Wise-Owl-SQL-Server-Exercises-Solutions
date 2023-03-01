@@ -1763,7 +1763,7 @@ drop table if exists #FlowerChildren
 create table #FlowerChildren (FlowerChildName nvarchar(510), Profession varchar(10), DOB datetime)
 insert into #FlowerChildren select ActorName, 'Actor', ActorDOB from tblActor where year(ActorDOB)=1969
 insert into #FlowerChildren select DirectorName, 'Director', DirectorDOB from tblDirector where year(DirectorDOB)=1969
-select * from #FlowerChildren order by DOB
+select * from #FlowerChild*ren order by DOB
 --OR Simply using SET operation:
 use Movies
 select ActorName 'FlowerChildName', 'Actor' 'Profession', ActorDOB 'DOB' from tblActor where year(ActorDOB)=1969 union
@@ -1776,7 +1776,7 @@ Each country can have many different historical events. Enter a few of the great
 use master
 go
 
-if exists(select name from master.sys.databases where name='Historical_Events')
+if exists(select name from sys.databases where name='Historical_Events')
 begin
 use Historical_Events
 drop table if exists tblEvent
@@ -2521,7 +2521,7 @@ select		tblCountry.CountryName
 from		tblCountry
 			INNER JOIN tblEvent on
 			tblCountry.CountryId = tblEvent.CountryId
-where        year(tblEvent.EventDate) >= 1990
+where		year(tblEvent.EventDate) >= 1990
 group by	tblCountry.CountryName
 having		count(tblEvent.EventId) >=5
 go
@@ -2530,7 +2530,31 @@ select * from vw_EventsByCountry
 /*The aim of this exercise is to display all of the actors who have appeared in films directed by Spielberg, but we'll do it in two passes, using a CTE: To accomplish this:
 Create a CTE which shows all of the films directed by Spielberg; then link the results of this CTE to the tblCast and tblActor tables*/
 use Movies
-go
 ;with cte_SpielbergFilms as (select FilmName from tblFilm join tblDirector on tblFilm.FilmDirectorID=tblDirector.DirectorID where DirectorName like '%Spielberg%')
 select ActorName, cte_SpielbergFilms.FilmName, CastCharacterName from cte_SpielbergFilms join tblFilm on cte_SpielbergFilms.FilmName=tblFilm.FilmName join tblCast on
 tblFilm.FilmID=tblCast.CastFilmID join tblActor on tblCast.CastActorID=tblActor.ActorID order by ActorName
+
+/*Write a query which:
+Begins a transaction
+Within this transaction, deletes all rows from the above table where the Category column is Betting or Adult
+Stores how many rows are left in the table in an integer variable
+Rolls back the transaction
+Stores how many rows are in the table after this roll back (in a second integer variable)
+Displays the final figures*/
+use Websites
+begin tran
+	set nocount on
+	declare @AD int, @AR int
+	delete Data_at_14_Jan_2010 where Category in ('Adult','Betting')
+	select @AD=count(*) from Data_at_14_Jan_2010
+	print 'After Deletion: '+cast(@AD as varchar)
+rollback tran
+	select @AR=count(*) from Data_at_14_Jan_2010
+	print 'After RollBack: '+cast(@AR as varchar)
+
+--Choose your favourite method to export the main event columns to an Excel workbook
+--use HistoricalEvents
+--insert into openrowset('MSOLEDBSQL','Excel 12.0; Database=Z:\Wise Owl\HistoricalEvents.xlsx;','select * from [Sheet1$]') select * from tblEvent
+--
+--
+--
