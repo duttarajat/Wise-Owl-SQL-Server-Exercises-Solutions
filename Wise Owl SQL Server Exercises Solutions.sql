@@ -388,7 +388,7 @@ CategoryID not in (select top 15 CategoryID from tblCategory order by CategoryNa
 --Create a stored procedure called usp_CountriesAsia to list out all the countries with ContinentId equal to 1, in alphabetical order:
 use WorldEvents
 go
-create or alter procedure usp_CountriesAsia as select CountryName from tblCountry where ContinentID=1 order by CountryName
+create or alter proc usp_CountriesAsia as select CountryName from tblCountry where ContinentID=1 order by CountryName
 go
 exec usp_CountriesAsia
 
@@ -401,7 +401,7 @@ from tblEpisode inner join tblDoctor on tblEpisode.DoctorId=tblDoctor.DoctorId w
 go
 exec usp_MattSmith
 go
-create or alter procedure usp_MattSmith as select SeriesNumber Series, EpisodeNumber Episode, Title, EpisodeDate 'Date of episode', DoctorName Docter
+create or alter proc usp_MattSmith as select SeriesNumber Series, EpisodeNumber Episode, Title, EpisodeDate 'Date of episode', DoctorName Docter
 from tblEpisode inner join tblDoctor on tblEpisode.DoctorId=tblDoctor.DoctorId where DoctorName='Matt Smith' and year(EpisodeDate)=2012
 go
 exec usp_MattSmith
@@ -409,7 +409,7 @@ exec usp_MattSmith
 --The aim of this exercise is to create a stored procedure called usp_AugustEvents which will show all events that occurred in the month of August:
 use WorldEvents
 go
-create or alter procedure usp_AugustEvents as select EventID, EventName, EventDetails, EventDate from tblEvent where month(EventDate)=8
+create or alter proc usp_AugustEvents as select EventID, EventName, EventDetails, EventDate from tblEvent where month(EventDate)=8
 go
 exec usp_AugustEvents
 
@@ -418,12 +418,12 @@ in date order (with the most recent first):
 Now amend your SQL so that it creates a different stored procedure called usp_Russell, listing out the 30 episodes penned by people called Russell:*/
 use DoctorWho
 go
-create or alter procedure usp_Moffats as
+create or alter proc usp_Moffats as
 select Title from tblEpisode inner join tblAuthor on tblEpisode.AuthorId=tblAuthor.AuthorId where AuthorName='Steven Moffat' order by EpisodeDate desc
 go
 exec usp_Moffats
 go
-create or alter procedure usp_Russell as select top 30 Title from tblEpisode inner join tblAuthor on tblEpisode.AuthorId=tblAuthor.AuthorId
+create or alter proc usp_Russell as select top 30 Title from tblEpisode inner join tblAuthor on tblEpisode.AuthorId=tblAuthor.AuthorId
 where AuthorName like '%Russell%' order by EpisodeDate desc
 go
 exec usp_Russell
@@ -431,7 +431,7 @@ exec usp_Russell
 --Create a procedure called usp_SummariseEpisodes to show: 3 most frequently-appearing companions; then separately 3 most frequently-appearing enemies.
 use DoctorWho
 go
-create or alter procedure usp_SummariseEpisodes as
+create or alter proc usp_SummariseEpisodes as
 select top 3 CompanionName, count(Title) Episodes from tblEpisode inner join tblEpisodeCompanion on tblEpisode.EpisodeId=tblEpisodeCompanion.CompanionId
 inner join tblCompanion on tblEpisodeCompanion.CompanionId=tblCompanion.CompanionId group by CompanionName order by Episodes desc
 select top 3 EnemyName, count(Title) Episodes from tblEpisode inner join tblEpisodeEnemy on tblEpisode.EpisodeId=tblEpisodeEnemy.EpisodeId
@@ -480,7 +480,7 @@ Declares an integer variable called @Age, Sets the value of this variable to be 
 Prints out your age, the final result of running the stored procedure should look like this:*/
 use DoctorWho
 go
-create or alter procedure usp_CalculateAge as
+create or alter proc usp_CalculateAge as
 declare @Age date
 set @Age = '1980-04-20'
 print concat('You are ',datediff(year,@Age,getdate()),' years old!')
@@ -522,7 +522,7 @@ then use these variables to filter your results to show only events occurring be
 Change the value of your variables to a different year's start/end, and rerun your query to check that it gives the correct events:*/
 use WorldEvents
 go
-create or alter procedure usp_EventsInYear as
+create or alter proc usp_EventsInYear as
 declare @StartDate date='1980-01-01', @EndDate date='1980-12-31'
 select EventName, EventDate, CountryName from tblEvent inner join tblCountry on tblEvent.CountryID=tblCountry.CountryID
 where EventDate between @StartDate and @EndDate
@@ -533,7 +533,7 @@ exec usp_EventsInYear
 a number of rows, but variables can only hold one. What we'd really like to do is to join the events into a single string variable:*/
 use WorldEvents
 go
-create or alter procedure usp_EventfulYear as
+create or alter proc usp_EventfulYear as
 declare @Year int=1992, @EventfulYear varchar(100)=''
 select top 3 @EventfulYear=@EventfulYear+EventName+', ' from tblEvent where year(EventDate)=@Year order by EventName
 select @EventfulYear 'Eventful Year'
@@ -543,7 +543,7 @@ exec usp_EventfulYear
 --The aim of this exercise is to use the SQL PRINT statement to show the following information about the doctor you've chosen:
 use DoctorWho
 go
-create or alter procedure usp_DoctorDetails as
+create or alter proc usp_DoctorDetails as
 declare @DoctorId int = 12, @DoctorName varchar(100), @NumberEpisodes int
 select @DoctorName=DoctorName from tblDoctor where DoctorId=@DoctorId
 select @NumberEpisodes=count(tblDoctor.DoctorId) from tblEpisode inner join tblDoctor on tblEpisode.DoctorId=tblDoctor.DoctorId where tblDoctor.DoctorId=@DoctorId
@@ -562,7 +562,7 @@ exec usp_DoctorDetails
 Now change this query into a stored procedure called usp_EnemyEpisodes, which lists out all of the episodes featuring a given enemy.*/
 use DoctorWho
 go
-create or alter procedure usp_EnemyEpisodes @EnemyName varchar(100)='' as
+create or alter proc usp_EnemyEpisodes @EnemyName varchar(100)='' as
 select SeriesNumber, EpisodeNumber, Title from tblEpisode inner join tblEpisodeEnemy on tblEpisode.EpisodeId=tblEpisodeEnemy.EpisodeId
 inner join tblEnemy on tblEpisodeEnemy.EnemyId=tblEnemy.EnemyId where EnemyName like '%'+@EnemyName+'%' order by SeriesNumber, EpisodeNumber
 go 
@@ -2542,19 +2542,131 @@ Rolls back the transaction
 Stores how many rows are in the table after this roll back (in a second integer variable)
 Displays the final figures*/
 use Websites
+
+set nocount on
+
 begin tran
-	set nocount on
 	declare @AD int, @AR int
 	delete Data_at_14_Jan_2010 where Category in ('Adult','Betting')
 	select @AD=count(*) from Data_at_14_Jan_2010
 	print 'After Deletion: '+cast(@AD as varchar)
+
 rollback tran
 	select @AR=count(*) from Data_at_14_Jan_2010
 	print 'After RollBack: '+cast(@AR as varchar)
 
 --Choose your favourite method to export the main event columns to an Excel workbook
 --use HistoricalEvents
---insert into openrowset('MSOLEDBSQL','Excel 12.0; Database=Z:\Wise Owl\HistoricalEvents.xlsx;','select * from [Sheet1$]') select * from tblEvent
+--select * from tblEvent
 --
 --
 --
+
+/*Create a function called ufn_CountIds to count how many trainers there are assigned to each course (note that exactly the same function could also count
+how many resources are assigned).*/
+use Training
+go
+
+create or alter function ufn_CountIds
+	(
+		@IDs varchar(50)
+	)
+returns int
+as
+	begin
+		declare @LengthWithCommas tinyint, @LengthWithoutCommas tinyint
+		set @LengthWithCommas=len(@IDs)
+		set @LengthWithoutCommas=len(replace(@IDs,',',''))
+		return @LengthWithCommas-@LengthWithoutCommas+1
+	end
+go
+
+select		CourseName
+			, convert(varchar,StartDate,103) 'Start Date'
+			, TrainerIds
+			, dbo.ufn_CountIds(TrainerIds) 'Trainers'' Count'
+from		tblSchedule
+			join tblCourse on tblSchedule.CourseId=tblCourse.CourseId
+order by	StartDate
+
+--Create a multi-statement table-valued function called ufn_CoursesForResources which - given a particular resource name - will return a table of courses which use that resource.
+use Training
+go
+
+create or alter function ufn_CoursesForResources
+	(
+		@ResourceName varchar(100)
+	)
+returns 
+table as
+return
+select	tblSchedule.ScheduleId, CourseName, StartDate, ResourceIds
+from	tblSchedule 
+		join tblCourse on tblSchedule.CourseId=tblCourse.CourseId
+		join (select ScheduleId, value from tblSchedule cross apply string_split(ResourceIds,',')) as cca on tblSchedule.ScheduleId=cca.ScheduleId
+		join tblResource on cca.value=tblResource.ResourceId
+where ResourceName=@ResourceName
+go
+
+select * from ufn_CoursesForResources('Whiteboard')
+select * from ufn_CoursesForResources('Projector')
+select * from ufn_CoursesForResources('Laptops')
+select * from ufn_CoursesForResources('Special equipment')
+select * from ufn_CoursesForResources('Flip chart')
+
+/*Create a function using a CASE statement to return the punk era for any given date, using these dubious statistics:
+Punk is defined to have begun on 1st January 1975
+Punk finished on 31st December 1979
+Write a query using your function to test it works
+Amend your query so that it shows how many events there were for each era, with the busiest era first.*/
+use HistoricalEvents
+go
+create or alter function ufn_Punk_Details () returns table as return
+select case when EventDate<'1975-01-01' then 'Pre-Punk' when EventDate>'1979-12-31' then 'Post-Punk' else 'Punk' end 'Punk_Era', EventName from tblEvent
+go
+create or alter function ufn_Punk_Count () returns table as return
+select top 100 percent Punk_Era, count(*) 'Number of Events' from (select case when EventDate<'1975-01-01' then 'Pre-Punk' when EventDate>'1979-12-31' then 'Post-Punk' else 'Punk' end
+'Punk_Era', EventName from tblEvent) Punk_Table group by Punk_Era order by 'Number of Events' desc
+go
+select * from dbo.ufn_Punk_Count()
+select * from dbo.ufn_Punk_Details()
+
+/*Create as many of the following queries as you have time for:
+A query called Null Countries to show that the only two countries where the ContinentId field is blank are Iraq and World
+A query called TV but not BBC which shows that there are 7 events in the tblEvent table whose names contain the letters TV but not BBC
+A query called Birth month events.sql which shows all the events which took place in your month of birth (ie whose date was on or after the first date of your birth month,
+and before or on the last day of your birth month)
+A query called Ecumenical query which shows that there are 6 events where the Description field includes either the word Pope or the word Islam*/
+use HistoricalEvents
+go
+select * from tblCountry where ContinentId is null
+select * from tblEvent where EventName like '%TV%' and EventName not like '%BBC%'
+select * from tblEvent where month(EventDate)=4
+select * from tblEvent where Description like '%Pope%' or Description like '%Islam%'
+
+/*Create a stored procedure called usp_ListDelegates which displays, for a given company name and course name extract, the people who are attending courses.
+If you leave either of the two parameters out, your stored procedure should show all rows for that parameter.*/
+use Training
+go
+create or alter proc usp_ListDelegates (@OrgName varchar(25)='', @CourseName varchar(50)='', @CourseContains varchar(50)='') as
+select	FirstName, LastName, OrgName, CourseName
+from	tblPerson	join tblOrg on tblPerson.OrgId=tblOrg.OrgId
+					join tblDelegate on tblPerson.Personid=tblDelegate.PersonId
+					join tblSchedule on tblDelegate.ScheduleId=tblSchedule.ScheduleId
+					join tblCourse on tblSchedule.CourseId=tblCourse.CourseId
+where OrgName=@OrgName and CourseName='@CourseName' and CourseName like '%'+@CourseContains+'%'
+go
+exec usp_ListDelegates 'Lloyds', 'ASP.NET'
+
+select top 1 CourseId, CourseName, NumberDays from tblCourse 
+select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
+select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
+select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
+select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
+select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
+select top 1 ResourceId, ResourceName from tblResource
+select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
+select top 1 SectorId, SectorName from tblSector
+select top 1 TrainerId, TrainerName from tblTrainer
+
+select * from tblOrg where OrgName='Lloyds'
