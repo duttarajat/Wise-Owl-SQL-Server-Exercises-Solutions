@@ -396,7 +396,7 @@ exec usp_CountriesAsia
 Change script so that it alters the stored procedure to list out only those episodes featuring Matt Smith made in 2012:*/
 use DoctorWho
 go
-create or alter procedure usp_MattSmith as select SeriesNumber Series, EpisodeNumber Episode, Title, EpisodeDate 'Date of episode', DoctorName Docter
+create or alter proc usp_MattSmith as select SeriesNumber Series, EpisodeNumber Episode, Title, EpisodeDate 'Date of episode', DoctorName Docter
 from tblEpisode inner join tblDoctor on tblEpisode.DoctorId=tblDoctor.DoctorId where DoctorName='Matt Smith'
 go
 exec usp_MattSmith
@@ -562,14 +562,14 @@ exec usp_DoctorDetails
 Now change this query into a stored procedure called usp_EnemyEpisodes, which lists out all of the episodes featuring a given enemy.*/
 use DoctorWho
 go
-create or alter proc usp_EnemyEpisodes @EnemyName varchar(100)='' as
+create or alter proc usp_EnemyEpisodes @EnemyName varchar(100)=NULL as
 select SeriesNumber, EpisodeNumber, Title from tblEpisode inner join tblEpisodeEnemy on tblEpisode.EpisodeId=tblEpisodeEnemy.EpisodeId
-inner join tblEnemy on tblEpisodeEnemy.EnemyId=tblEnemy.EnemyId where EnemyName like '%'+@EnemyName+'%' order by SeriesNumber, EpisodeNumber
+inner join tblEnemy on tblEpisodeEnemy.EnemyId=tblEnemy.EnemyId where EnemyName like '%'+isnull(@EnemyName,EnemyName)+'%' order by SeriesNumber, EpisodeNumber
 go 
-exec usp_EnemyEpisodes @EnemyName='Dalek'
-exec usp_EnemyEpisodes @EnemyName='ood'
-exec usp_EnemyEpisodes @EnemyName='auton'
-exec usp_EnemyEpisodes @EnemyName='silence'
+exec usp_EnemyEpisodes 'Dalek'
+exec usp_EnemyEpisodes 'ood'
+exec usp_EnemyEpisodes 'auton'
+exec usp_EnemyEpisodes 'silence'
 
 /*Create a stored procedure to list out the category name, event date and category id for each event:
 Incorporate parameters for the following:
@@ -581,12 +581,12 @@ Now try adding default values to the parameters and you'll see that it's difficu
 what should the default be for @CategoryID? Instead assign NULL as the default value for all 3 parameters:*/
 use WorldEvents
 go
-create or alter procedure usp_CategoryEventDate @CategoryName varchar(100)='', @After date='1776-03-09', @CategoryId int=100 as
+create or alter proc usp_CategoryEventDate @CategoryName varchar(100)=NULL, @After date='1776-03-09', @CategoryId int=100 as
 select CategoryName, EventDate, tblEvent.CategoryID from tblEvent inner join tblCategory on tblEvent.CategoryID=tblCategory.CategoryID
-where CategoryName like '%'+@CategoryName+'%' and EventDate>=@After and tblEvent.CategoryID
+where CategoryName like '%'+isnull(@CategoryName,CategoryName)+'%' and EventDate>=@After and tblEvent.CategoryID
 <=@CategoryId order by EventDate
 go
-exec usp_CategoryEventDate @CategoryName='death', @After='19900101'
+exec usp_CategoryEventDate 'death', '19900101'
 exec usp_CategoryEventDate @CategoryId=16
 
 /*Create a stored procedure to list out the EventName, EventDate and Country fields:
@@ -594,22 +594,22 @@ Add a parameter to your stored procedure that will take in the country name of i
 Try passing in different countries or parts of country names to change the number of events returned.*/
 use WorldEvents
 go
-create or alter procedure usp_CountryEvents @CountryNameHas varchar(50)='', @CountryNameStartsWith varchar(50)='' as
+create or alter proc usp_CountryEvents @CountryNameHas varchar(50)=null, @CountryNameStartsWith varchar(50)=null as
 select EventName, EventDate, CountryName from tblEvent inner join tblCountry on tblEvent.CountryID=tblCountry.CountryID
-where CountryName like '%'+@CountryNameHas+'%' and CountryName like @CountryNameStartsWith+'%' order by EventDate
+where CountryName like '%'+isnull(@CountryNameHas,CountryName)+'%' and CountryName like isnull(@CountryNameStartsWith,CountryName)+'%' order by EventDate
 go
-exec usp_CountryEvents @CountryNameHas='d', @CountryNameStartsWith='s'
+exec usp_CountryEvents 'd', 's'
 
 /*Create a stored procedure called usp_ContinentEvents which filters events to show only those:
 which took place in a given continent; which took place on or after a given date; and which took place on or before a given date.*/
 use WorldEvents
 go
-create or alter procedure usp_ContinentEvents @ContinentName varchar(30)='', @OnOrAfterDate date='1776-03-09', @TillDate date='2016-11-08' as
+create or alter proc usp_ContinentEvents @ContinentName varchar(30)=null, @OnOrAfterDate date='1776-03-09', @TillDate date='2016-11-08' as
 select ContinentName, EventName, EventDate from tblEvent
 inner join tblCountry on tblEvent.CountryID=tblCountry.CountryID inner join tblContinent on tblCountry.ContinentID=tblContinent.ContinentID
-where ContinentName like '%'+@ContinentName+'%' and EventDate between @OnOrAfterDate and @TillDate order by EventDate
+where ContinentName like '%'+isnull(@ContinentName,ContinentName)+'%' and EventDate between @OnOrAfterDate and @TillDate order by EventDate
 go
-exec usp_ContinentEvents @ContinentName='Asia', @OnOrAfterDate='1990-01-01', @TillDate='2000-01-01'
+exec usp_ContinentEvents 'Asia', '1990-01-01', '2000-01-01'
 
 /*The aim of this exercise is to create a stored procedure which will output a variable containing a comma-delimited list of the continents
 which have 50 or more events. Start by selecting these continents in a stored procedure, now turn this into a list variable separated using commas,
@@ -617,7 +617,8 @@ but don't worry about removing the trailing comma. Store this list variable in a
 and capture the output in a variable, then remove the trailing comma*/
 use WorldEvents
 go
-create or alter procedure usp_BigHappenings as declare @EventfulContinents varchar(200)=''
+create or alter proc usp_BigHappenings as
+declare @EventfulContinents varchar(200)=''
 select @EventfulContinents=@EventfulContinents+ContinentName+', ' from tblContinent
 inner join tblCountry on tblContinent.ContinentID=tblCountry.ContinentID inner join tblEvent on tblCountry.CountryID=tblEvent.CountryID
 group by ContinentName having count(tblEvent.CountryID)>=50
@@ -629,7 +630,7 @@ exec usp_BigHappenings
 Now set a default value of Null for your parameter, such that it lists out all of the episodes if you don't specify a series number:*/
 use DoctorWho
 go
-create or alter procedure usp_ListEpisodes @SeriesNumber int=10 as
+create or alter proc usp_ListEpisodes @SeriesNumber int=10 as
 select EpisodeDate, Title, EpisodeNumber, SeriesNumber from tblEpisode where SeriesNumber<=@SeriesNumber order by EpisodeDate
 go
 exec usp_ListEpisodes 1
@@ -639,10 +640,10 @@ database if you leave the doctor's name parameter out).
 To test your procedure out, see if you get 3, 5 and 17 companions' names respectively when you run these tests: 'Ecc', 'matt', blank*/
 use DoctorWho
 go
-create or alter procedure usp_CompanionsForDoctor @DoctorName varchar(100)='' as
+create or alter proc usp_CompanionsForDoctor @DoctorName varchar(100)=null as
 select distinct CompanionName from tblCompanion inner join tblEpisodeCompanion on tblCompanion.CompanionId=
 tblEpisodeCompanion.CompanionId inner join tblEpisode on tblEpisodeCompanion.EpisodeId=tblEpisode.EpisodeId inner join tblDoctor on tblEpisode.DoctorId=
-tblDoctor.DoctorId where DoctorName like '%'+@DoctorName+'%'
+tblDoctor.DoctorId where DoctorName like '%'+isnull(@DoctorName,DoctorName)+'%'
 go
 exec usp_CompanionsForDoctor 'matt'
 
@@ -2648,25 +2649,15 @@ select * from tblEvent where Description like '%Pope%' or Description like '%Isl
 If you leave either of the two parameters out, your stored procedure should show all rows for that parameter.*/
 use Training
 go
-create or alter proc usp_ListDelegates (@OrgName varchar(25)='', @CourseName varchar(50)='', @CourseContains varchar(50)='') as
+create or alter proc usp_ListDelegates @OrgName varchar(25)=NULL, @CourseContains varchar(50)=NULL as
 select	FirstName, LastName, OrgName, CourseName
-from	tblPerson	join tblOrg on tblPerson.OrgId=tblOrg.OrgId
+from	tblOrg		join tblPerson on tblOrg.OrgId=tblPerson.OrgId
 					join tblDelegate on tblPerson.Personid=tblDelegate.PersonId
 					join tblSchedule on tblDelegate.ScheduleId=tblSchedule.ScheduleId
 					join tblCourse on tblSchedule.CourseId=tblCourse.CourseId
-where OrgName=@OrgName and CourseName='@CourseName' and CourseName like '%'+@CourseContains+'%'
+where OrgName=isnull(@OrgName,OrgName) and CourseName like '%'+isnull(@CourseContains,CourseName)+'%'
 go
 exec usp_ListDelegates 'Lloyds', 'ASP.NET'
+exec usp_ListDelegates 'BP'
+exec usp_ListDelegates @CourseContains='Word'
 
-select top 1 CourseId, CourseName, NumberDays from tblCourse 
-select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
-select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
-select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
-select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
-select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
-select top 1 ResourceId, ResourceName from tblResource
-select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
-select top 1 SectorId, SectorName from tblSector
-select top 1 TrainerId, TrainerName from tblTrainer
-
-select * from tblOrg where OrgName='Lloyds'
