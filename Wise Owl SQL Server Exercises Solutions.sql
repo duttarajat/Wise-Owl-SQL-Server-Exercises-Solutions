@@ -1764,7 +1764,7 @@ drop table if exists #FlowerChildren
 create table #FlowerChildren (FlowerChildName nvarchar(510), Profession varchar(10), DOB datetime)
 insert into #FlowerChildren select ActorName, 'Actor', ActorDOB from tblActor where year(ActorDOB)=1969
 insert into #FlowerChildren select DirectorName, 'Director', DirectorDOB from tblDirector where year(DirectorDOB)=1969
-select * from #FlowerChild*ren order by DOB
+select * from #FlowerChildren order by DOB
 --OR Simply using SET operation:
 use Movies
 select ActorName 'FlowerChildName', 'Actor' 'Profession', ActorDOB 'DOB' from tblActor where year(ActorDOB)=1969 union
@@ -1791,7 +1791,7 @@ create database Historical_Events
 go
 use Historical_Events
 go
-create table tblCountry 
+create table tblCountry
 (
 	CountryId int identity (1,1) not null
 	, CountryName varchar(255)
@@ -2661,3 +2661,137 @@ exec usp_ListDelegates 'Lloyds', 'ASP.NET'
 exec usp_ListDelegates 'BP'
 exec usp_ListDelegates @CourseContains='Word'
 
+/*Create a join to list out all of the Asian events in your database. This is trickier than it looks, as you'll have to create an inner join not just to the tblCountry table,
+but also to the tblContinent table so that you can put in a WHERE clause.*/
+use HistoricalEvents
+select EventName 'Event', convert(varchar,EventDate,103) 'Date', CountryName 'Country' from tblEvent join tblCountry on tblEvent.CountryId=tblCountry.CountryId 
+join tblContinent on tblCountry.ContinentId=tblContinent.ContinentId where ContinentName='Asia'
+
+/*Use a CASE statement to show the type for each event, using the following rules:
+If it's country 18, it must be United States
+If it's country 17, it must be UK
+Otherwise, it must be Somewhere else*/
+use HistoricalEvents
+select EventDate, EventName, CountryId, case when CountryId=18 then 'United States' when CountryId=17 then 'United Kingdom' else 'Somewhere Else' end 'Type of Event' from tblEvent
+
+/*Create a query which lists out all of the events to do with Concorde (ie which have Concorde somewhere in the Description column).
+Now add another WHERE clause to your query so that it only shows events to do with Concorde which took place in country number 6 (France)*/
+use HistoricalEvents
+select EventDate, EventName, CountryId from tblEvent where Description like '%Concorde%'
+select EventDate, EventName, CountryId from tblEvent where Description like '%Concorde%' and CountryId=6
+
+--Create a query to list out the names of the first half of the countries in the tblCountry table.
+use HistoricalEvents
+select top 50 percent CountryId, CountryName from tblCountry
+
+/*This exercise will create a procedure to allow you to move a person to a different organisation. Create a log table to hold a record of every successful move:
+Write your stored procedure so that it:
+Begins a transaction
+Inserts a record in the log table recording that a person has been moved
+Runs an UPDATE statement to change the person's OrgId column value
+Commits the transaction if this doesn't generate an error, or rolls it back otherwise
+Existing constraints will ensure that you can only move someone to a company which already exists*/
+use Training
+go
+create or alter proc MovePerson @PersonId int, @OrgId int as
+begin
+	set nocount on
+	begin tran
+		if object_id('MovePersonLog') is null
+			begin
+				create table MovePersonLog
+				(
+					LogId int primary key identity(1,1)
+					, LogName varchar(40)
+					, LogTime datetime2
+				)
+			end
+
+		insert into MovePersonLog (LogName, LogTime) values ('Moved person '+cast(@PersonId as varchar)+' to organisation '+cast(@OrgId as varchar)+'.', getdate())
+		begin try
+			update tblPerson set OrgId=@OrgId where Personid=@PersonId
+
+			if @@rowcount=0
+				begin
+					print 'PersonID not found, No Rows Updated!'
+					rollback tran
+				end
+			else
+				begin
+					print 'Record Updated, please check MovePersonLog for more details'
+					commit tran
+				end
+		end try
+
+		begin catch
+			if @@error=547
+				begin
+					print 'Invalid OrgID, No Rows Updated!'
+					rollback tran
+				end
+		end catch
+end
+go
+
+exec MovePerson 22,39
+exec MovePerson 22,66
+exec MovePerson 2200,39
+exec MovePerson 22,3900
+
+select LogId, LogName, LogTime from MovePersonLog
+drop table if exists MovePersonLog
+
+--Create a query listing the events in the database, starting with the closest to your birthday and finishing with the furthest away
+use HistoricalEvents
+select EventName, convert(varchar,EventDate,103) 'Date of Event', abs(datediff(day,EventDate,'1980-04-20')) 'Days Away' from tblEvent order by 'Days Away'
+
+/*Create an in-line table-valued function which returns all of the film characters containing a given string of text.
+Now write a SELECT statement which joins the results of your function to the tblDirector table to show the people who have directed films containing characters with particular names!*/
+use Movies
+go
+create or alter function ufn_Characters (@CharNameContains varchar(50)) returns table as return
+select FilmDirectorID, ActorName 'Actor', CastCharacterName 'Character', FilmName 'Film' from tblFilm join tblCast on tblFilm.FilmID=tblCast.CastFilmID join tblActor on
+tblCast.CastActorID=tblActor.ActorID where CastCharacterName like '%'+@CharNameContains+'%'
+go
+select Actor, Film, Character, DirectorName 'Director' from dbo.ufn_Characters('Ben') join tblDirector on dbo.ufn_Characters.FilmDirectorID=tblDirector.DirectorID
+
+--Create a query to show for each country the number of events occurring since 1st January 1990, but only for countries having 5 or more events
+use HistoricalEvents
+select CountryName, count(*) 'Number of Events' from tblEvent te join tblCountry tc on te.CountryId=tc.CountryId where EventDate>'1990-01-01' group by CountryName having count(*)>4
+
+--Create another query which shows the number of events for each event name length, with the most common character length (the mode) first
+use HistoricalEvents
+select len(EventName) ' Number of Characters', count(*) 'Number of Events' from tblEvent group by len(EventName) order by 'Number of Events' desc
+
+--Write a stored procedure which will add any event (defaulting to the UK unless a specific country id is used), using this add two events
+use HistoricalEvents
+go
+create or alter proc usp_AddEvent (@EventName nvarchar(510), @EventDate datetime, @Description nvarchar(510), @CountryId bigint=17) as
+begin
+	set nocount on
+	begin try
+		insert into tblEvent (EventName, EventDate, Description, CountryId) values (@EventName, @EventDate, @Description, @CountryId)
+		print 'Record Sucessfully Inserted'
+	end try
+	begin catch
+		if @@error in (547,8114,201)
+			begin
+				print 'Msg '+cast(error_number() as varchar)+', Level '+cast(error_severity() as varchar)+', State '+cast(error_state() as varchar)+', Procedure '+error_procedure()+
+				', Line '+cast(error_line() as varchar)
+				print error_message()
+			end
+	end catch
+end
+go
+
+exec usp_AddEvent 'General Elections','2010-06-05', 'Tories win General Elections 2010', 25
+exec usp_AddEvent 'General Elections','2010-13-05', 'Tories win General Elections 2010'
+exec usp_AddEvent 'General Elections','2010-06-05'
+
+exec usp_AddEvent 'General Elections','2010-06-05', 'Tories win General Elections 2010'
+
+delete tblEvent where EventName='General Elections'
+
+select top 4 ContinentId, ContinentName from tblContinent
+select top 4 CountryId, CountryName, ContinentId from tblCountry
+select top 4 EventId, EventName, EventDate, Description, CountryId from tblEvent
