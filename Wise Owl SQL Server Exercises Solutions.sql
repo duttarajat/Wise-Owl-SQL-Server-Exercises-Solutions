@@ -2738,9 +2738,6 @@ exec MovePerson 22,66
 exec MovePerson 2200,39
 exec MovePerson 22,3900
 
-select LogId, LogName, LogTime from MovePersonLog
-drop table if exists MovePersonLog
-
 --Create a query listing the events in the database, starting with the closest to your birthday and finishing with the furthest away
 use HistoricalEvents
 select EventName, convert(varchar,EventDate,103) 'Date of Event', abs(datediff(day,EventDate,'1980-04-20')) 'Days Away' from tblEvent order by 'Days Away'
@@ -2774,7 +2771,7 @@ begin
 		print 'Record Sucessfully Inserted'
 	end try
 	begin catch
-		if @@error in (547,8114,201)
+		if error_number() <> 0
 			begin
 				print 'Msg '+cast(error_number() as varchar)+', Level '+cast(error_severity() as varchar)+', State '+cast(error_state() as varchar)+', Procedure '+error_procedure()+
 				', Line '+cast(error_line() as varchar)
@@ -2784,14 +2781,40 @@ begin
 end
 go
 
-exec usp_AddEvent 'General Elections','2010-06-05', 'Tories win General Elections 2010', 25
-exec usp_AddEvent 'General Elections','2010-13-05', 'Tories win General Elections 2010'
-exec usp_AddEvent 'General Elections','2010-06-05'
-
+exec usp_AddEvent 'Cyril Smith dies','2010-03-09', 'Cyril Smith dies (MP for Rochdale)', 17
 exec usp_AddEvent 'General Elections','2010-06-05', 'Tories win General Elections 2010'
+exec usp_AddEvent 'Spain win World Cup','2010-07-11', 'Spain defeat the Netherlands', 14
 
-delete tblEvent where EventName='General Elections'
+--Create a query to list out all the films which were made by directors who are older than any of the actors in the database
+use Movies
+select FilmName from tblFilm join tblDirector on tblFilm.FilmDirectorID=tblDirector.DirectorID where DirectorDOB<(select min(ActorDOB) from tblActor)
 
-select top 4 ContinentId, ContinentName from tblContinent
-select top 4 CountryId, CountryName, ContinentId from tblCountry
-select top 4 EventId, EventName, EventDate, Description, CountryId from tblEvent
+--Create a query to list out any films starring any of the 3 youngest actors in the database.
+use Movies
+select distinct FilmName from tblFilm join tblCast on tblFilm.FilmID=tblCast.CastFilmID join tblActor on tblCast.CastActorID=tblActor.ActorID where ActorName in 
+(select top 3 ActorName from tblActor order by ActorDOB desc)
+
+/*Create a query to show a list of all of the people in the database in first name order, showing for each: Their id and name, The number of course places they have booked in total
+The number of SQL course places they have booked; and The number of Visio course places they have booked*/
+--use Training
+--select Personid, FirstName, LastName from tblPerson
+--order by FirstName
+--
+--
+
+--Use a cursor to print out a list of the top 10 websites in terms of incoming links
+use Websites
+declare crsr_top10Websites cursor for select top 10 Name, LinkingSites from Data_at_14_Jan_2010 order by LinkingSites desc
+
+
+
+
+select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
+CategoryId from Data_at_14_Jan_2010
+select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
+select top 1 CategoryId, CategoryName from tblCategory
+select top 1 CompanyId, CompanyName from tblCompany
+select top 1 CountryId, CountryName from tblCountry
+select top 1 DomainId, DomainName from tblDomain
+select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
+select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
