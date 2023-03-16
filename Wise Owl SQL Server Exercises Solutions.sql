@@ -2804,17 +2804,59 @@ The number of SQL course places they have booked; and The number of Visio course
 
 --Use a cursor to print out a list of the top 10 websites in terms of incoming links
 use Websites
+declare @Name varchar(max), @Sites int, @Row int
 declare crsr_top10Websites cursor for select top 10 Name, LinkingSites from Data_at_14_Jan_2010 order by LinkingSites desc
+open crsr_top10Websites
+set @Row=1
+fetch next from crsr_top10Websites into @Name, @Sites
+while @@fetch_status=0
+	begin
+		print @Name+' is at position '+cast(@Row as varchar)+' with '+cast(@Sites as varchar)+' links '
+		fetch next from crsr_top10Websites into @Name, @Sites
+		set @Row=@Row+1
+	end
+close crsr_top10Websites
+deallocate crsr_top10Websites
 
+--Our task is to customise the standard (n row(s) affected) SQL message which appears after running a query.
+use Websites
+set nocount on
+declare @RCount int=0
+select @RCount=count(*) from tblWebsite
+print 'Summary of Query'
+print '----------------'
+print 'This listed '+cast(@RCount as varchar)+' sites'
 
+/*Create a stored procedure, now write the rest of the stored procedure so that it does what the comments suggest it should. For example, if you run the command
+EXEC usp_GooglySites 3 you should see:*/
+use Websites
+go
+create or alter proc usp_GooglySites (@DetailLevel tinyint=1) as
+begin
+if @DetailLevel=1
+	select WebsiteName 'Website Name' from tblWebsite where WebsiteName like '%google%'
+	else if @DetailLevel=2
+		select WebsiteName 'Website Name', WebsiteUrl 'Website Address' from tblWebsite where WebsiteName like '%google%'
+		else if @DetailLevel=3
+			select WebsiteName 'Website Name', WebsiteUrl 'Website Address', AlexaRankWorld 'Alexa Ranking' from tblWebsite where WebsiteName like '%google%'
+else
+	print 'Please choose from 1, 2 and 3, default selection is 1 if nothing is chosen'
+end
+go
 
+exec usp_GooglySites 3
 
-select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
-CategoryId from Data_at_14_Jan_2010
-select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
-select top 1 CategoryId, CategoryName from tblCategory
-select top 1 CompanyId, CompanyName from tblCompany
-select top 1 CountryId, CountryName from tblCountry
-select top 1 DomainId, DomainName from tblDomain
-select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
-select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
+/*Create a stored procedure called usp_Schedules which takes two parameters:
+From date for searching (if not passed in, this should take the default value 1st January 1990)
+To date for searching (if not passed in, this should take the default value 31st December 1999)
+The stored procedure should then show all websites registered between the two dates passed.*/
+use Websites
+go
+create or alter proc usp_Schedules (@SDate date='1990-01-01', @EDate date='1999-12-31') as
+select * from tblWebsite where DateOnline between @SDate and @EDate order by DateOnline
+go
+
+exec usp_Schedules
+exec usp_Schedules '01/01/2000', '12/31/2000'
+exec usp_Schedules '01/01/1991', '12/31/1991'
+
