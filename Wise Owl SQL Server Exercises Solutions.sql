@@ -1025,6 +1025,10 @@ go
 print ''
 print 'Last one added was number '+cast(@@identity as varchar)
 print ''
+
+exec usp_CreatetblGenre
+go
+
 select GenreID, GenreName, Rating from tblGenre order by GenreID
 
 /*The aim of this exercise is to explicitly create a table, then insert the output from several select statements into it.
@@ -1096,10 +1100,11 @@ Add a statement at the top of your query to create a new table called #EventsByL
 Now change your SELECT statement so that it adds the first letter summary rows into this table, rather than creating a new table.
 When you run this revised query, it should accommodate the xz insertion also, and allow you to display the final results:*/
 use WorldEvents
+drop table if exists #EventsByLetter
 select left(EventName,1) 'First Letter', count(*) 'Number of Events' into #EventsByLetter from tblEvent group by left(EventName,1) order by [First Letter]
 select * from #EventsByLetter
 insert into #EventsByLetter values ('XZ',57)
-
+go
 drop table if exists #EventsByLetter
 create table #EventsByLetter ([First Letter] varchar(2), [Number of Events] int)
 insert into #EventsByLetter select left(EventName,1), count(*)from tblEvent group by left(EventName,1) order by left(EventName,1)
@@ -2860,3 +2865,49 @@ exec usp_Schedules
 exec usp_Schedules '01/01/2000', '12/31/2000'
 exec usp_Schedules '01/01/1991', '12/31/1991'
 
+/*Create two variables:
+Write code to set the variable @CourseName to hold the name of schedule number 1 (you should find it set to VISUAL C# 2005 WINDOWS FORMS DELEGATES).
+Write code to set the variable @People to hold the accumulated names of the delegates on this course, and then print out what you've accumulated*/
+use Training
+go
+set nocount on
+declare @CourseName varchar(50), @People varchar(max)
+select @CourseName=CourseName from tblCourse join tblSchedule on tblCourse.CourseId=tblSchedule.CourseId where ScheduleId=1
+print upper(@CourseName+' delegates')
+print ''
+declare crsr_People cursor for
+select FirstName+' '+LastName from tblPerson join tblDelegate on tblPerson.Personid=tblDelegate.PersonId join tblSchedule on tblDelegate.ScheduleId=tblSchedule.ScheduleId
+join tblCourse on tblSchedule.CourseId=tblCourse.CourseId where CourseName=@CourseName order by FirstName+' '+LastName
+open crsr_People
+fetch next from crsr_People into @People
+while @@FETCH_STATUS=0
+	begin
+		print @People
+		fetch next from crsr_People into @People
+	end
+close crsr_People
+deallocate crsr_People
+
+/*Create a stored procedure usp_CompareCountries, which takes in as input the names of 2 countries. Within this stored procedure, create a CTE giving for each website the usage
+proportion for that website for each of the two countries specified. Create a SELECT statement based on this CTE to show the results with a total*/
+use Websites
+go
+create or alter proc usp_CompareCountries @Country1 varchar(20), @Country2 varchar(20) as
+;with cte_Proportion(WebsiteId, WebsiteName, Country1, Country2) as
+(select	tblWebsite.WebsiteId, WebsiteName, u1.Proportion, isnull(u2.Proportion, 0.000) from tblWebsite join tblUsage u1 on tblWebsite.WebsiteId=u1.WebsiteId
+join tblUsage u2 on tblWebsite.WebsiteId=u2.WebsiteId join tblCountry c1 on u1.CountryId=c1.CountryId join tblCountry c2 on u2.CountryId=c2.CountryId where u1.CountryId=
+(select CountryId from tblCountry where CountryName=@Country1) and u2.CountryId=(select CountryId from tblCountry c2 where CountryName=@Country2))
+select WebsiteName, Country1, Country2, Country1+Country2 'Total' from cte_Proportion
+go
+
+exec usp_CompareCountries 'France','Greece'
+
+select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
+CategoryId from Data_at_14_Jan_2010
+select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
+select top 1 CategoryId, CategoryName from tblCategory
+select top 1 CompanyId, CompanyName from tblCompany
+select top 1 CountryId, CountryName from tblCountry
+select top 1 DomainId, DomainName from tblDomain
+select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
+select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
