@@ -1,3 +1,4 @@
+set nocount on
 --https://www.wiseowl.co.uk/sql/exercises/standard/
 
 --SIMPLE QUERIES
@@ -481,8 +482,7 @@ Prints out your age, the final result of running the stored procedure should loo
 use DoctorWho
 go
 create or alter proc usp_CalculateAge as
-declare @Age date
-set @Age = '1980-04-20'
+declare @Age date='1980-04-20'
 print concat('You are ',datediff(year,@Age,getdate()),' years old!')
 go
 exec usp_CalculateAge
@@ -546,7 +546,7 @@ go
 create or alter proc usp_DoctorDetails as
 declare @DoctorId int = 12, @DoctorName varchar(100), @NumberEpisodes int
 select @DoctorName=DoctorName from tblDoctor where DoctorId=@DoctorId
-select @NumberEpisodes=count(tblDoctor.DoctorId) from tblEpisode inner join tblDoctor on tblEpisode.DoctorId=tblDoctor.DoctorId where tblDoctor.DoctorId=@DoctorId
+select @NumberEpisodes=count(tblDoctor.DoctorId) from tblEpisode join tblDoctor on tblEpisode.DoctorId=tblDoctor.DoctorId where tblDoctor.DoctorId=@DoctorId
 print 'Results for Doctor number: '+cast(@DoctorId as varchar(2))
 print '---------------------------------'
 print ''
@@ -1061,6 +1061,7 @@ Update the authors so that they belong to the correct genre, using 3 UPDATE stat
 Use a SELECT statement to display each author with their corresponding genre, joining the tblAuthor and tblGenre tables
 Now for the hardest part - make sure that your query works every time that you run it, and not just the first time!*/
 use Books
+go
 if exists(select * from INFORMATION_SCHEMA.COLUMNS where table_name='tblAuthor' and column_name='GenreId')
 begin
 alter table tblAuthor drop constraint FK_GenreID
@@ -1071,7 +1072,7 @@ end
 update tblAuthor set GenreId=3 where AuthorId=1
 update tblAuthor set GenreId=2 where AuthorId=2
 update tblAuthor set GenreId=1 where AuthorId=3
-select FirstName+' '+LastName 'Author', GenreName 'Genre' from tblAuthor inner join tblGenre on tblAuthor.GenreId=tblGenre.GenreID
+select FirstName+' '+LastName 'Author', GenreName 'Genre' from tblAuthor join tblGenre on tblAuthor.GenreId=tblGenre.GenreID
 
 --TEMPORARY TABLES AND TABLE VARIABLES
 
@@ -1095,7 +1096,7 @@ select * from @tblCharacters order by CharacterName desc
 
 /*Using the INTO syntax, create a temporary table holding a count of the number of event names beginning with the same letter.
 The problem with INTO is that it decides the data type of the column based on the current data. Try adding XZ as a first letter with a count of 57
-using INSERT INTO: This should generate an error:
+using INSERT INTO: This should generate an error.
 Add a statement at the top of your query to create a new table called #EventsByLetter with two columns:
 Now change your SELECT statement so that it adds the first letter summary rows into this table, rather than creating a new table.
 When you run this revised query, it should accommodate the xz insertion also, and allow you to display the final results:*/
@@ -1802,9 +1803,6 @@ create table tblCountry
 	, CountryName varchar(255)
 	, constraint [PK_tblCountry] primary key clustered (CountryId asc) on [PRIMARY]
 )
-go
-
-set nocount on
 go
 
 insert into tblCountry
@@ -2549,8 +2547,6 @@ Stores how many rows are in the table after this roll back (in a second integer 
 Displays the final figures*/
 use Websites
 
-set nocount on
-
 begin tran
 	declare @AD int, @AR int
 	delete Data_at_14_Jan_2010 where Category in ('Adult','Betting')
@@ -2700,7 +2696,6 @@ use Training
 go
 create or alter proc MovePerson @PersonId int, @OrgId int as
 begin
-	set nocount on
 	begin tran
 		if object_id('MovePersonLog') is null
 			begin
@@ -2770,7 +2765,6 @@ use HistoricalEvents
 go
 create or alter proc usp_AddEvent (@EventName nvarchar(510), @EventDate datetime, @Description nvarchar(510), @CountryId bigint=17) as
 begin
-	set nocount on
 	begin try
 		insert into tblEvent (EventName, EventDate, Description, CountryId) values (@EventName, @EventDate, @Description, @CountryId)
 		print 'Record Sucessfully Inserted'
@@ -2825,7 +2819,6 @@ deallocate crsr_top10Websites
 
 --Our task is to customise the standard (n row(s) affected) SQL message which appears after running a query.
 use Websites
-set nocount on
 declare @RCount int=0
 select @RCount=count(*) from tblWebsite
 print 'Summary of Query'
@@ -2870,7 +2863,6 @@ Write code to set the variable @CourseName to hold the name of schedule number 1
 Write code to set the variable @People to hold the accumulated names of the delegates on this course, and then print out what you've accumulated*/
 use Training
 go
-set nocount on
 declare @CourseName varchar(50), @People varchar(max)
 select @CourseName=CourseName from tblCourse join tblSchedule on tblCourse.CourseId=tblSchedule.CourseId where ScheduleId=1
 print upper(@CourseName+' delegates')
@@ -2893,21 +2885,98 @@ proportion for that website for each of the two countries specified. Create a SE
 use Websites
 go
 create or alter proc usp_CompareCountries @Country1 varchar(20), @Country2 varchar(20) as
-;with cte_Proportion(WebsiteId, WebsiteName, Country1, Country2) as
-(select	tblWebsite.WebsiteId, WebsiteName, u1.Proportion, isnull(u2.Proportion, 0.000) from tblWebsite join tblUsage u1 on tblWebsite.WebsiteId=u1.WebsiteId
-join tblUsage u2 on tblWebsite.WebsiteId=u2.WebsiteId join tblCountry c1 on u1.CountryId=c1.CountryId join tblCountry c2 on u2.CountryId=c2.CountryId where u1.CountryId=
-(select CountryId from tblCountry where CountryName=@Country1) and u2.CountryId=(select CountryId from tblCountry c2 where CountryName=@Country2))
-select WebsiteName, Country1, Country2, Country1+Country2 'Total' from cte_Proportion
+	;with cte_Proportion(WebsiteId, WebsiteName, Country1, Country2) as
+	(
+		select tblWebsite.WebsiteId, WebsiteName, u1.Proportion, u2.Proportion 
+		from tblWebsite
+			join tblUsage u1 on tblWebsite.WebsiteId=u1.WebsiteId
+			join tblUsage u2 on tblWebsite.WebsiteId=u2.WebsiteId
+			join tblCountry c1 on u1.CountryId=c1.CountryId
+			join tblCountry c2 on u2.CountryId=c2.CountryId
+		where u1.CountryId=(select CountryId from tblCountry where CountryName=@Country1)
+			  and
+			  u2.CountryId=(select CountryId from tblCountry where CountryName=@Country2)
+	)
+
+select WebsiteName, Country1 'First Country', Country2 'Second Country', Country1+Country2 'Total' from cte_Proportion
 go
 
 exec usp_CompareCountries 'France','Greece'
 
-select top 1 id, AlexaRank, Name, Company, Url, LinkingSites, DateOnline, Domain, Country, Category, AlexaUKRank, CompanyId, DomainSuffixId, CountryId,
-CategoryId from Data_at_14_Jan_2010
-select top 1 Id, RankingId, Proportion, Country, upsize_ts from Rankings
-select top 1 CategoryId, CategoryName from tblCategory
-select top 1 CompanyId, CompanyName from tblCompany
-select top 1 CountryId, CountryName from tblCountry
-select top 1 DomainId, DomainName from tblDomain
-select top 1 UsageId, CountryId, WebsiteId, Proportion from tblUsage
-select top 1 WebsiteId, AlexaRankWorld, AlexaRankUk, WebsiteName, CompanyId, WebsiteUrl, NumberLinks, DateOnline, DomainId, CategoryId from tblWebsite
+--Create a function to return the domain suffix from any website URL
+use Websites
+go
+create or alter function udf_DomainExtn (@DName varchar(50)) returns varchar(10) as
+begin
+declare @DExtn varchar(10)
+set @DExtn=iif(substring(@DName,len(@DName)-charindex('.',reverse(@DName))+1,charindex('.',reverse(@DName))+1)=' ','Invalid',
+substring(@DName,len(@DName)-charindex('.',reverse(@DName))+1,charindex('.',reverse(@DName))+1))
+return @DExtn
+end
+go
+select WebsiteName, WebsiteUrl, dbo.udf_DomainExtn(WebsiteUrl) Domain, DomainName from tblWebsite join tblDomain on tblWebsite.DomainId=tblDomain.DomainId
+where dbo.udf_DomainExtn(WebsiteUrl)<>DomainName
+
+--Create a query to list out country names as follows: Belgium has 7 letters
+use HistoricalEvents
+go
+select CountryName+' has '+cast(len(CountryName) as varchar)+' letters' 'Country Description' from tblCountry
+
+/*Create a query to show for each event the full date in the format shown: 
+EventName	Full date
+VE Day		Tuesday 8 May 1945*/
+use HistoricalEvents
+go
+select EventName, datename(weekday,EventDate)+' '+cast(datepart(day,EventDate) as varchar)+' '+datename(month,EventDate)+' '+cast(year(EventDate) as varchar)'Full Date' from tblEvent
+
+/*Show that:
+There weren't any events which took place on Friday 13th
+The only event which took place on Thursday 13th was the instigation of the Public Record Act of July 1967
+There were 3 events which took place on Saturday 13th, one of which wasn't a good day for Saddam Hussein*/
+use HistoricalEvents
+go
+select EventName, datename(weekday,EventDate)+' '+cast(datepart(day,EventDate) as varchar)+' '+datename(month,EventDate)+' '+cast(year(EventDate) as varchar)'Full Date' from tblEvent
+where datename(weekday,EventDate)='Friday' and datepart(day,EventDate)=13
+
+select EventName, datename(weekday,EventDate)+' '+cast(datepart(day,EventDate) as varchar)+' '+datename(month,EventDate)+' '+cast(year(EventDate) as varchar)'Full Date' from tblEvent
+where datename(weekday,EventDate)='Thursday' and datepart(day,EventDate)=13
+
+select EventName, datename(weekday,EventDate)+' '+cast(datepart(day,EventDate) as varchar)+' '+datename(month,EventDate)+' '+cast(year(EventDate) as varchar)'Full Date' from tblEvent
+where datename(weekday,EventDate)='Saturday' and datepart(day,EventDate)=13
+
+/*Using the PRINT statement, write your query so that it lists out the following columns from the tblEvent table:
+EventName
+EventDate*/
+use HistoricalEvents
+go
+print 'Great events in history'
+print '-----------------------'
+print ''
+select Eventname, EventDate from tblEvent
+--OR
+print 'Great events in history'
+print '-----------------------'
+print ''
+print 'EventName'
+print '------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'
+declare @EventName varchar(max)=''
+declare crsr_EventName cursor for select Eventname from tblEvent
+open crsr_EventName
+fetch next from crsr_EventName into @EventName
+while @@FETCH_STATUS=0
+	begin
+		print @EventName
+		fetch next from crsr_EventName into @EventName
+	end
+close crsr_EventName
+deallocate crsr_EventName
+
+--Create a single query to show the first and last 5 events in alphabetical order
+use HistoricalEvents
+go
+select top 5 EventName, EventDate Date from tblEvent order by EventName
+select top 5 EventName, EventDate Date from tblEvent order by EventName desc
+
+/*Create a stored procedure called spEvents to show all events which:
+Start with a given letter
+End with a separate given letter (which may be omitted)*/
