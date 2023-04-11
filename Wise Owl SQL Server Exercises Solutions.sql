@@ -3041,11 +3041,15 @@ select EventName, EventDate, CountryId from tblEvent where CountryId in (3,5,7) 
 --Write a query to show the 96 films for which no actors exist
 use Movies
 go
-select FilmName from tblFilm left outer join tblCast on tblFilm.FilmID=tblCast.CastFilmID left outer join tblActor on tblCast.CastActorID=tblActor.ActorID where ActorName is null order by FilmName
 
---Write another query to show that there are no actors who do not appear in any films in the database.
-use Movies
-go
-select ActorName from tblActor left outer join tblCast on tblActor.ActorID=tblCast.CastActorID left outer join tblFilm on tblCast.CastFilmID=tblFilm.FilmID where FilmName is null
 
---Write some sort of query, somehow, which takes in any comma-delimited id string of trainer ids as input; your query should, somehow, turn this into a comma-delimited string of trainer names
+
+select top 1 ActorID, ActorName, ActorDOB, ActorGender from tblActor
+select top 1 CastID, CastFilmID, CastActorID, CastCharacterName from tblCast
+select top 1 CertificateID, CertificateName from tblCertificate
+select top 1 CountryID, CountryName from tblCountry
+select top 1 DirectorID, DirectorName, DirectorDOB, DirectorGender from tblDirector
+select top 1 FilmID, FilmName, FilmReleaseDate, FilmDirectorID, FilmLanguageID, FilmCountryID, FilmStudioID, FilmSynopsis, FilmRunTimeMinutes, FilmCertificateID, FilmBudgetDollars,
+FilmBoxOfficeDollars, FilmOscarNominations, FilmOscarWins from tblFilm
+select top 1 LanguageID, LanguageName from tblLanguage
+select top 1 StudioID, StudioName from tblStudio
