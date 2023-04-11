@@ -2977,6 +2977,75 @@ go
 select top 5 EventName, EventDate Date from tblEvent order by EventName
 select top 5 EventName, EventDate Date from tblEvent order by EventName desc
 
-/*Create a stored procedure called spEvents to show all events which:
+/*Create a stored procedure called usp_Events to show all events which:
 Start with a given letter
 End with a separate given letter (which may be omitted)*/
+use WorldEvents
+go
+create or alter proc usp_Events @SLetter varchar(1), @ELetter varchar(1)='' as
+select EventName 'Name of Event', convert(varchar,EventDate,103) 'Date of Event' from tblEvent where EventName like @SLetter+'%' and EventName like '%'+@ELetter 
+order by EventDate
+go
+exec usp_Events k, s
+
+--Create a query to show the number of events for each decade
+use HistoricalEvents
+go
+select case when EventDate<'1950-01-01' then 'Decade 1 - Forties' when EventDate<'1960-01-01' then 'Decade 2 - Fifties' when EventDate<'1970-01-01' then 'Decade 3 - Sixties' 
+when EventDate<'1980-01-01' then 'Decade 4 - Seventies' when EventDate<'1990-01-01' then 'Decade 5 - Eighties' when EventDate<'2000-01-01' then 'Decade 6 - Nineties' else 'Decade 7 - Noughties'
+end Decade, count(EventId) 'Number of Events' from tblEvent group by case when EventDate<'1950-01-01' then 'Decade 1 - Forties' when EventDate<'1960-01-01' then 'Decade 2 - Fifties'
+when EventDate<'1970-01-01' then 'Decade 3 - Sixties' when EventDate<'1980-01-01' then 'Decade 4 - Seventies' when EventDate<'1990-01-01' then 'Decade 5 - Eighties'
+when EventDate<'2000-01-01' then 'Decade 6 - Nineties' else 'Decade 7 - Noughties' end
+
+--Create a query to list the events by year and month, with the most recent event coming first
+use HistoricalEvents
+go
+select year(EventDate) EventYear, month(EventDate) EventMonth, count(EventDate) 'Number of Events' from tblEvent group by year(EventDate), month(EventDate) with rollup
+order by year(EventDate) desc, month(EventDate) desc
+
+select year(EventDate) EventYear, month(EventDate) EventMonth, count(EventDate) 'Number of Events' from tblEvent group by year(EventDate), month(EventDate) with cube
+order by year(EventDate) desc, month(EventDate) desc
+
+/*Create as many of the following queries as you have time for:
+A query called Null Countries to show that the only two countries where the ContinentId field is blank are Iraq and World
+A query called TV but not BBC which shows that there are 7 events in the tblEvent table whose names contain the letters TV but not BBC
+A query called Birth month events.sql which shows all the events which took place in your month of birth (ie whose date was on or after the first date of your birth month,
+and before or on the last day of your birth month)
+A query called Ecumenical query which shows that there are 6 events where the Description field includes either the word Pope or the word Islam*/
+use HistoricalEvents
+go
+select CountryName from tblCountry where ContinentId is null
+select EventName from tblEvent where EventName like '%TV%' and EventName not like '%BBC%'
+select EventName from tblEvent where month(EventDate)=4
+select EventName from tblEvent where Description like '%Pope%' or Description like '%Islam%'
+
+/*Your friend Oscar has contacted you.  He is opening a DVD library, and wants to computerise his stock and lending records.  He has asked you to design a database for him. 
+On paper, design a database for Oscar - using these thoughts to help you:
+Each member can rent out more than one DVD on each occasion, and can also spend money on other goods (such as sweets or popcorn). However, you only need to keep track of which DVDs are in stock.
+The DVD store will typically buy many different copies of the same film, each of which needs to be tracked separately.
+If you have time you could try putting your database into practice in SQL Server*/
+--
+--
+--
+--
+--
+
+/*Create a query to show all events which satisfy either (or both!) of the following criteria:
+The event took place in any country apart from 17 (the UK) in the year 2001; or
+The event took place in any of countries 3, 5 or 7 (Canada, the EU or Germany, as it happens), but doesn't have a U in its name*/
+use HistoricalEvents
+go
+select EventName, EventDate, CountryId from tblEvent where CountryId<>17 and year(EventDate)=2001 union
+select EventName, EventDate, CountryId from tblEvent where CountryId in (3,5,7) and EventName not like '%u%' order by EventDate
+
+--Write a query to show the 96 films for which no actors exist
+use Movies
+go
+select FilmName from tblFilm left outer join tblCast on tblFilm.FilmID=tblCast.CastFilmID left outer join tblActor on tblCast.CastActorID=tblActor.ActorID where ActorName is null order by FilmName
+
+--Write another query to show that there are no actors who do not appear in any films in the database.
+use Movies
+go
+select ActorName from tblActor left outer join tblCast on tblActor.ActorID=tblCast.CastActorID left outer join tblFilm on tblCast.CastFilmID=tblFilm.FilmID where FilmName is null
+
+--Write some sort of query, somehow, which takes in any comma-delimited id string of trainer ids as input; your query should, somehow, turn this into a comma-delimited string of trainer names
