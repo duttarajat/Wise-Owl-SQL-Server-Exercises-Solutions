@@ -3041,15 +3041,67 @@ select EventName, EventDate, CountryId from tblEvent where CountryId in (3,5,7) 
 --Write a query to show the 96 films for which no actors exist
 use Movies
 go
+select FilmName from tblFilm left outer join tblCast on tblFilm.FilmID=tblCast.CastFilmID left outer join tblActor on tblCast.CastActorID=tblActor.ActorID where ActorName is null order by FilmName
+
+--Write another query to show that there are no actors who do not appear in any films in the database.
+use Movies
+go
+select ActorName from tblActor left outer join tblCast on tblActor.ActorID=tblCast.CastActorID left outer join tblFilm on tblCast.CastFilmID=tblFilm.FilmID where FilmName is null
+
+--Write some sort of query, which takes in any comma-delimited id string of trainer ids as input; your query should, turn this into a comma-delimited string of trainer names
+use Training
+go
+create or alter proc usp_TrainerNames @TrainerIds varchar(50) as
+begin
+declare @TName varchar(150)=''
+select @TName=@TName+TrainerName+', ' from tblTrainer where TrainerId in (select value from string_split(@TrainerIds,','))
+select left(@TName,len(@TName)-2) 'Trainer Names'
+end
+go
+exec usp_TrainerNames '21,93,3993,4085'
+
+/*Create two variables as shown below:
+Write code to set the variable @CourseName to hold the name of schedule number 1 (you should find it set to VISUAL C# 2005 WINDOWS FORMS DELEGATES).
+Write code to set the variable @People to hold the accumulated names of the delegates on this course, and then print out what you've accumulated*/
+use Training
+go
+declare @CourseName varchar(50), @People varchar(max)
+select @CourseName=CourseName from tblCourse join tblSchedule on tblCourse.CourseId=tblSchedule.CourseId where ScheduleId=1
+print upper(@CourseName+' delegates')
+print ''
+declare crsr_People cursor for
+select FirstName+' '+LastName from tblDelegate left outer join tblPerson on tblDelegate.Personid=tblPerson.PersonId left outer join tblSchedule on tblDelegate.ScheduleId=tblSchedule.ScheduleId
+left outer join tblCourse on tblSchedule.CourseId=tblCourse.CourseId where CourseName=@CourseName
+open crsr_People
+fetch next from crsr_People into @People
+while @@FETCH_STATUS=0
+	begin
+		print @People
+		fetch next from crsr_People into @People
+	end
+close crsr_People
+deallocate crsr_People
+
+/*Add a new integer column called Importance to the tblPerson table. Write a query which begins a transaction, and then updates the value of the Importance column for each person to:
+10 if this person has attended 1 or less courses (ie if the number of rows in the tblDelegate table for this PersonId is less than or equal to 1)
+20 if this person has attended 2 to 4 courses; or
+30 otherwise
+Extend this query so that it deletes all "unimportant" people (ie those whose importance is 10), and prints out a message saying how many rows have been deleted:
+Finally, add a condition which:
+Commits the transaction if there are still at least 500 people left in the table; or
+Rolls it back otherwise*/
+use Training
+go
 
 
 
-select top 1 ActorID, ActorName, ActorDOB, ActorGender from tblActor
-select top 1 CastID, CastFilmID, CastActorID, CastCharacterName from tblCast
-select top 1 CertificateID, CertificateName from tblCertificate
-select top 1 CountryID, CountryName from tblCountry
-select top 1 DirectorID, DirectorName, DirectorDOB, DirectorGender from tblDirector
-select top 1 FilmID, FilmName, FilmReleaseDate, FilmDirectorID, FilmLanguageID, FilmCountryID, FilmStudioID, FilmSynopsis, FilmRunTimeMinutes, FilmCertificateID, FilmBudgetDollars,
-FilmBoxOfficeDollars, FilmOscarNominations, FilmOscarWins from tblFilm
-select top 1 LanguageID, LanguageName from tblLanguage
-select top 1 StudioID, StudioName from tblStudio
+select top 1 CourseId, CourseName, NumberDays from tblCourse 
+select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
+select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
+select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
+select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
+select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
+select top 1 ResourceId, ResourceName from tblResource
+select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
+select top 1 SectorId, SectorName from tblSector
+select top 1 TrainerId, TrainerName from tblTrainer
