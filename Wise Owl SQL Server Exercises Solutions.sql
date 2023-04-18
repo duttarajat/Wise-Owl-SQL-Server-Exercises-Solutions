@@ -1674,6 +1674,23 @@ select top 100 percent EventName, EventDate from tblEvent join tblCountry on tbl
 tblContinent.ContinentId where ContinentName='Africa' order by EventDate
 go
 select * from vw_Africa
+
+USE [HistoricalEvents]
+GO
+
+/****** Object:  View [dbo].[vw_Africa]    Script Date: 4/18/2023 11:05:34 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+create or alter view [dbo].[vw_AfricaAsia] as
+select top 100 percent EventName, EventDate from tblEvent join tblCountry on tblEvent.CountryId=tblCountry.CountryId join tblContinent on tblCountry.ContinentId=
+tblContinent.ContinentId where ContinentName='Africa' or ContinentName='Asia' order by EventDate
+GO
+
+select * from vw_Africa
 select * from vw_AfricaAsia
 
 /*Create a query which lists out the top 10 websites in the UK (ie ordered by AlexaRankUk, where the AlexaRankUk column is not null)
@@ -2885,24 +2902,26 @@ proportion for that website for each of the two countries specified. Create a SE
 use Websites
 go
 create or alter proc usp_CompareCountries @Country1 varchar(20), @Country2 varchar(20) as
-	;with cte_Proportion(WebsiteId, WebsiteName, Country1, Country2) as
-	(
-		select tblWebsite.WebsiteId, WebsiteName, u1.Proportion, u2.Proportion 
-		from tblWebsite
-			join tblUsage u1 on tblWebsite.WebsiteId=u1.WebsiteId
-			join tblUsage u2 on tblWebsite.WebsiteId=u2.WebsiteId
-			join tblCountry c1 on u1.CountryId=c1.CountryId
-			join tblCountry c2 on u2.CountryId=c2.CountryId
-		where u1.CountryId=(select CountryId from tblCountry where CountryName=@Country1)
-			  and
-			  u2.CountryId=(select CountryId from tblCountry where CountryName=@Country2)
-	)
-
-select WebsiteName, Country1 'First Country', Country2 'Second Country', Country1+Country2 'Total' from cte_Proportion
+	;with cte_Prop1 (WebsiteId, WebsiteName, Country1) as
+		(
+			select tblWebsite.WebsiteId, WebsiteName, Proportion from tblWebsite
+				left outer join tblUsage on tblWebsite.WebsiteId=tblUsage.WebsiteId
+				left outer join tblCountry on tblUsage.CountryId=tblCountry.CountryId
+			where tblCountry.CountryName=@Country1
+		),
+	cte_Prop2 (WebsiteId, WebsiteName, Country2) as
+		(
+			select tblWebsite.WebsiteId, WebsiteName, Proportion from tblWebsite
+				left outer join tblUsage on tblWebsite.WebsiteId=tblUsage.WebsiteId
+				left outer join tblCountry on tblUsage.CountryId=tblCountry.CountryId
+			where tblCountry.CountryName=@Country2
+		)
+select isnull(cte_Prop1.WebsiteName,cte_Prop2.WebsiteName) 'WebsiteName', isnull(Country1,0.000) 'First Country', isnull(Country2,0.000) 'Second Country',
+isnull(Country1,0.000)+isnull(Country2,0.000) 'Total' from cte_Prop1 full join cte_Prop2 on cte_Prop1.WebsiteId=cte_Prop2.WebsiteId order by cte_Prop1.WebsiteId
 go
-
 exec usp_CompareCountries 'France','Greece'
-
+go
+			
 --Create a function to return the domain suffix from any website URL
 use Websites
 go
@@ -2922,7 +2941,7 @@ use HistoricalEvents
 go
 select CountryName+' has '+cast(len(CountryName) as varchar)+' letters' 'Country Description' from tblCountry
 
-/*Create a query to show for each event the full date in the format shown: 
+/*Create a query to show for each event the full date in the format shown:
 EventName	Full date
 VE Day		Tuesday 8 May 1945*/
 use HistoricalEvents
@@ -3019,7 +3038,7 @@ select EventName from tblEvent where EventName like '%TV%' and EventName not lik
 select EventName from tblEvent where month(EventDate)=4
 select EventName from tblEvent where Description like '%Pope%' or Description like '%Islam%'
 
-/*Your friend Oscar has contacted you.  He is opening a DVD library, and wants to computerise his stock and lending records.  He has asked you to design a database for him. 
+/*Your friend Oscar has contacted you. He is opening a DVD library, and wants to computerise his stock and lending records. He has asked you to design a database for him. 
 On paper, design a database for Oscar - using these thoughts to help you:
 Each member can rent out more than one DVD on each occasion, and can also spend money on other goods (such as sweets or popcorn). However, you only need to keep track of which DVDs are in stock.
 The DVD store will typically buy many different copies of the same film, each of which needs to be tracked separately.
@@ -3092,16 +3111,22 @@ Commits the transaction if there are still at least 500 people left in the table
 Rolls it back otherwise*/
 use Training
 go
-
-
-
-select top 1 CourseId, CourseName, NumberDays from tblCourse 
-select top 1 DelegateId, ScheduleId, PersonId from tblDelegate
-select top 1 OrgId, OrgName, OrgStatusId, SectorId, DateAdded from tblOrg
-select top 1 OrgStatusId, OrgStatusName from tblOrgStatus
-select top 1 Personid, OrgId, FirstName, LastName, Department, PersonStatusId from tblPerson
-select top 1 PersonStatusId, PersonStatusName from tblPersonStatus
-select top 1 ResourceId, ResourceName from tblResource
-select top 1 ScheduleId, CourseId, StartDate, TrainerIds, ResourceIds from tblSchedule
-select top 1 SectorId, SectorName from tblSector
-select top 1 TrainerId, TrainerName from tblTrainer
+alter table tblPerson drop column if exists Importance
+go
+alter table tblPerson add Importance int
+go
+begin tran
+set nocount on
+drop table if exists #temp
+select tblPerson.PersonId, count(tblDelegate.DelegateId) 'Count', (case when count(tblDelegate.DelegateId)<=1 then 10 when count(tblDelegate.DelegateId)<=4 then 20 else 30 end) 'Importance'
+into #temp from tblPerson left outer join tblDelegate on tblPerson.Personid=tblDelegate.PersonId group by tblPerson.Personid
+update tblPerson set Importance=#temp.Importance from #temp where tblPerson.PersonId=#temp.PersonId
+delete tblPerson where Importance=10
+print cast(@@rowcount as varchar)+' unimportant people deleted'
+if (select count(*) from tblPerson)>=500
+begin
+commit tran
+end
+else
+rollback tran
+alter table tblPerson drop column if exists Importance
