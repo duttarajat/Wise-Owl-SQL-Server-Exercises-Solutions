@@ -76,7 +76,7 @@ select EventName, LEN(EventName) [Length of Name] from tblEvent order by [Length
 Apply a WHERE criteria to show only those events in country number 1 (Ukraine)*/
 use WorldEvents
 select EventName+' (category '+CAST(CategoryID as varchar)+')' [Event (category)], EventDate from tblEvent where CountryID=1
-
+--OR
 select CONCAT(EventName,' (category ',CAST(CategoryID as varchar),')') [Event (category)], EventDate from tblEvent where CountryID=1
 
 /*The tblContinent table lists out the world's continents, but there are gaps:
@@ -740,13 +740,6 @@ begin
 	set @Counter=@Counter+1
 end
 
---Your task is to write a query to show the first (say) 1000 primes.
---
---
---
---
---
-
 /*Ever wondered which month is the most eventful? Or which month an event occurred in? Create a loop to list the events in each month,
 by looping from month number 1 to 12:*/
 use WorldEvents
@@ -1292,6 +1285,25 @@ select (select count(Information) from dbo.udf_CCC('a')) 'A_results', (select co
 
 --DERIVED TABLES AND CTEs
 
+--The aim of this exercise is to count the number of events by a column called Era which you'll calculate, without including this calculation twice:
+use WorldEvents
+;with cte_Era (Era) as
+(select case when year(EventDate)<1900 then '19th Century and earlier' when year(EventDate)<2000 then '20th Century' else '21st Century' end Era
+from tblEvent)
+select Era, count(Era) 'Number of Events' from cte_Era group by Era
+
+/*The aim of this exercise is to use a CTE (Common Table Expression) to extract data from the database in two passes:
+Get a list of all of the episodes written by authors with MP in their names.
+Get a list of the companions featuring in these episodes.*/
+use DoctorWho
+;with cte_AuthorCompanion (EpisodeId) as
+(select EpisodeId from tblEpisode e inner join tblAuthor a on e.AuthorId=a.AuthorId where AuthorName like '%mp%')
+select * from cte_AuthorCompanion
+;with cte_AuthorCompanion (EpisodeId) as
+(select EpisodeId from tblEpisode e inner join tblAuthor a on e.AuthorId=a.AuthorId where AuthorName like '%mp%')
+select distinct CompanionName from cte_AuthorCompanion cte inner join tblEpisodeCompanion ec on cte.EpisodeId=ec.EpisodeId inner join tblCompanion
+c on ec.CompanionId=c.CompanionId
+
 --The aim of this exercise is to show the number of events whose descriptions contain the words this and/or that:
 use WorldEvents
 go
@@ -1306,33 +1318,13 @@ with cte_ThisAndThat (EventName, EventDetails) as
 (select EventName, EventDetails from tblEvent where EventDetails like '%this%' and EventDetails like '%that%')
 select * from cte_ThisAndThat
 
-/*The aim of this exercise is to use a CTE (Common Table Expression) to extract data from the database in two passes:
-Get a list of all of the episodes written by authors with MP in their names.
-Get a list of the companions featuring in these episodes.*/
-use DoctorWho
-;with cte_AuthorCompanion (EpisodeId) as
-(select EpisodeId from tblEpisode e inner join tblAuthor a on e.AuthorId=a.AuthorId where AuthorName like '%mp%')
-select * from cte_AuthorCompanion
-;with cte_AuthorCompanion (EpisodeId) as
-(select EpisodeId from tblEpisode e inner join tblAuthor a on e.AuthorId=a.AuthorId where AuthorName like '%mp%')
-select distinct CompanionName from cte_AuthorCompanion cte inner join tblEpisodeCompanion ec on cte.EpisodeId=ec.EpisodeId inner join tblCompanion
-c on ec.CompanionId=c.CompanionId
-
---The aim of this exercise is to count the number of events by a column called Era which you'll calculate, without including this calculation twice:
+/*This exercise shows how you can use a CTE to make a complicated question simple, by dividing it into two or more parts.
+First create a query to list out for each event id the positions (if any) of the words this and that:*/
 use WorldEvents
-;with cte_Era (Era) as
-(select case when year(EventDate)<1900 then '19th Century and earlier' when year(EventDate)<2000 then '20th Century' else '21st Century' end Era
-from tblEvent)
-select Era, count(Era) 'Number of Events' from cte_Era group by Era
-
---The aim of this exercise is to list out all the continents which have: At least 3 countries; but also At most 10 events.
-use WorldEvents
-;with cte_ManyCountries (ContinentName) as
-(select ContinentName from tblContinent ct inner join tblCountry cy on ct.ContinentID=cy.ContinentID group by ContinentName having count(CountryName)>=3),
-cte_FewEvents (ContinentName) as
-(select ContinentName from tblContinent ct inner join tblCountry cy on ct.ContinentID=cy.ContinentID inner join tblEvent e on cy.CountryID=e.CountryID
-group by ContinentName having count(EventID)<10)
-select * from cte_ManyCountries intersect select * from cte_FewEvents
+;with cte_ThisAndThat as
+(select EventID, charindex('this',EventDetails,1) 'ThisPosition', charindex('that',EventDetails,1) 'ThatPosition' from tblEvent where
+charindex('this',EventDetails,1)>0 and charindex('this',EventDetails,1)<charindex('that',EventDetails,1))
+select EventName, EventDate from tblEvent e inner join cte_ThisAndThat cte on e.EventID=cte.EventID
 
 /*The aim of this exercise is to show a list of all of the enemies appearing in Doctor Who episodes featuring Rose Tyler, but not David Tennant.
 First create a query to show the episode id numbers for the 13 episodes which feature Rose Tyler as a companion, but not David Tennant as the Doctor.
@@ -1343,14 +1335,6 @@ use DoctorWho
 inner join tblCompanion c on ec.CompanionId=c.CompanionId where CompanionName='Rose Tyler' and DoctorName<>'David Tennant')
 select distinct EnemyName from tblEnemy ey inner join tblEpisodeEnemy ee on ey.EnemyId=ee.EnemyId inner join tblEpisode e on ee.EpisodeId=e.EpisodeId
 inner join cte_EpisodeIds cte on cte.EpisodeId=e.EpisodeId
-
-/*This exercise shows how you can use a CTE to make a complicated question simple, by dividing it into two or more parts.
-First create a query to list out for each event id the positions (if any) of the words this and that:*/
-use WorldEvents
-;with cte_ThisAndThat as
-(select EventID, charindex('this',EventDetails,1) 'ThisPosition', charindex('that',EventDetails,1) 'ThatPosition' from tblEvent where
-charindex('this',EventDetails,1)>0 and charindex('this',EventDetails,1)<charindex('that',EventDetails,1))
-select EventName, EventDate from tblEvent e inner join cte_ThisAndThat cte on e.EventID=cte.EventID
 
 /*The aim of this exercise is to use a CTE to hold some data, before joining another table to your CTE. Start by selecting only events which
 start with a letter between A and M. Now turn this SELECT statement into a CTE called First_Half_CTE.
@@ -1367,27 +1351,40 @@ use WorldEvents
 select CountryName, EventName from (select EventName, CountryId from tblEvent where right(EventName,1) between 'N' and 'Z') Second_Half_Derived
 inner join tblCountry c on Second_Half_Derived.CountryID=c.CountryID
 
-/*The aim of this exercise is to use CTEs to answer the following questions:
-What to do																										Returns
-Get a list of those events which contain none of the letters in the word OWL									3 rows
-Use this to get a list of all of those events which take place in the countries for the events in list 1.		9 rows
-Get a third list of all of the events which share the same categories as any of the events in the second list.	116 rows*/
-/*use WorldEvents
-select EventName from tblEvent te inner join tblCountry tc on te.CountryID=tc.CountryID where CountryName in (select distinct CountryName from
-tblCountry c inner join tblEvent e on c.CountryID=e.CountryID where EventName in (select EventName from tblEvent where EventName not like '%[owl]%'))*/
---
---
---
---
---
+--The aim of this exercise is to list out all the continents which have: At least 3 countries; but also At most 10 events.
+use WorldEvents
+;with cte_ManyCountries (ContinentName) as
+(select ContinentName from tblContinent ct inner join tblCountry cy on ct.ContinentID=cy.ContinentID group by ContinentName having count(CountryName)>=3),
+cte_FewEvents (ContinentName) as
+(select ContinentName from tblContinent ct inner join tblCountry cy on ct.ContinentID=cy.ContinentID inner join tblEvent e on cy.CountryID=e.CountryID
+group by ContinentName having count(EventID)<10)
+select * from cte_ManyCountries intersect select * from cte_FewEvents
 
 /*The Carnival database contains a table called tblMenu. This contains all of the menus for a website. Each menu has an id number, and also contains
-within its record the id of its parent. Use a recursive CTE based on this table to show all of the menus, with breadcrumbs:*/
---
---
---
---
---
+within its record the id of its parent. Use a recursive CTE based on this table to show all of the menus, with breadcrumbs*/
+use Carnival;
+with cte_AllMenus as
+(
+	select MenuId, MenuName, cast('Top' as varchar(255)) Breadcrumb from tblMenu where ParentMenuId is null
+	union all
+	select tblMenu.MenuId, tblMenu.MenuName, cast(cast(cte_AllMenus.Breadcrumb as varchar(255))+' > '+cast(cte_AllMenus.MenuName as varchar(255)) as varchar(255)) from tblMenu
+	join cte_AllMenus on tblMenu.ParentMenuId=cte_AllMenus.MenuId
+)
+select MenuId, MenuName, Breadcrumb from cte_AllMenus
+
+/*The aim of this exercise is to list out all the categories of events which occurred in the Space country. You'll then list all of the events which
+didn't occur in Space, with their country names and categories. You can then show the 8 countries which had non-Space events in the same category as
+one of the Space events.*/
+use WorldEvents
+select distinct CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on tblEvent.CategoryID=tblCategory.CategoryID 
+where CountryName='Space'
+
+select CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on tblEvent.CategoryID=tblCategory.CategoryID
+where CountryName<>'Space'
+
+select distinct CountryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on tblEvent.CategoryID=tblCategory.CategoryID
+where CountryName<>'Space' and CategoryName in (select distinct CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory
+on tblEvent.CategoryID=tblCategory.CategoryID where CountryName='Space')
 
 /*Create two CTEs in the same query as follows:
 CTE				What it should list out
@@ -1409,6 +1406,16 @@ select CountryName, CategoryName, count(EventId) 'Number of Events' from tblEven
 tblCategory cy on e.CategoryID=cy.CategoryID inner join cte_TopCountries tc on e.CountryID=tc.CountryID inner join cte_TopCategories tcy on
 e.CategoryID=tcy.CategoryID group by CountryName, CategoryName order by [Number of Events] desc
 
+/*The aim of this exercise is to use CTEs to answer the following questions:
+What to do																										Returns
+Get a list of those events which contain none of the letters in the word OWL									3 rows
+Use this to get a list of all of those events which take place in the countries for the events in list 1.		9 rows
+Get a third list of all of the events which share the same categories as any of the events in the second list.	116 rows*/
+use WorldEvents
+select EventName, EventDate, CategoryName, CountryName from tblEvent tet join tblCategory tcy on tet.CategoryID=tcy.CategoryID join tblCountry tctry on tet.CountryID=tctry.CountryID
+where tcy.CategoryID in (select distinct CategoryID from tblEvent te join tblCountry tc on te.CountryID=tc.CountryID where CountryName in (select distinct CountryName from tblCountry c
+join tblEvent e on c.CountryID=e.CountryID where e.EventName in (select EventName from tblEvent where EventDetails not like '%[owl]%'))) order by tet.EventDate
+
 --Create a query which lists the David Tennant episodes for which none of the enemies appear in any non-David Tennant episodes
 use DoctorWho
 select distinct e2.EpisodeId, Title from tblEpisode e2 full join tblEpisodeEnemy ee2 on e2.EpisodeId=ee2.EpisodeId full join tblEnemy ey2 on
@@ -1419,25 +1426,13 @@ select distinct EnemyName from tblEnemy ey1 full join tblEpisodeEnemy ee1 on ey1
 e1.EpisodeId full join tblDoctor d1 on e1.DoctorId=d1.DoctorId where DoctorName<>'David Tennant'
 ) order by Title
 
-/*The aim of this exercise is to list out all the categories of events which occurred in the Space country. You'll then list all of the events which
-didn't occur in Space, with their country names and categories. You can then show the 8 countries which had non-Space events in the same category as
-one of the Space events.*/
-use WorldEvents
-select CountryName, CategoryName from tblEvent join tblCountry on tblEvent.CountryID=tblCountry.CountryID join tblCategory on
-tblEvent.CategoryID=tblCategory.CategoryID where CountryName<>'Space'
---
---
---
---
---
-
 --DYNAMIC SQL
 
 --The aim of this exercise is to be able to pass different table names to a select statement, to show different sets of rows.
 use WorldEvents
 go
 create or alter proc usp_ChangingTables @TableName varchar(max) as
-declare @SQL varchar(max)='select * from '+@TableName --+convert(varchar(20), getdate(),103)
+declare @SQL varchar(max)='select * from '+@TableName
 exec (@SQL)
 go
 exec usp_ChangingTables 'tblEvent'
@@ -1459,18 +1454,17 @@ exec (@SQL)
 go
 exec usp_EpisodesSorted 'EpisodeNumber', 'desc'
 
-/*Create a comma-delimited list variable containing all of the names of events that occurred in your decade of birth. Use LEFT to remove the
-extra comma, and QUOTENAME to add apostrophes. Now use this list to filter another select statement which shows all of (*) the information about
-those events from the event table. You will need to use dynamic SQL:*/
-/*use WorldEvents
+/*Create a comma-delimited list variable containing all of the names of events that occurred in your decade of birth. Use LEFT to remove the extra comma, and QUOTENAME to add apostrophes.
+Now use this list to filter another select statement which shows all of (*) the information about those events from the event table. You will need to use Dynamic SQL:*/
+use WorldEvents
 go
 declare @EventName varchar(max)=''
 select @EventName=@EventName+EventName+', ' from tblEvent where year(EventDate) between 1980 and 1989
-set @EventName=concat('''',replace(@EventName,', ',''','''),'''')
---set @EventName=concat('(',left(@EventName,(len(@EventName)-3)),')')
-set @EventName=left(@EventName,(len(@EventName)-3))
+set @EventName=concat('''''',replace(@EventName,', ',''','''),'''''')
+set @EventName=left(@EventName,(len(@EventName)-4))
+set @EventName=right(@EventName,(len(@EventName)-1))
 print @EventName
---select * from tblEvent where EventName in (@EventName)*/
+select * from tblEvent where EventName in (@EventName)
 --
 --
 --
@@ -1655,7 +1649,7 @@ select EventDate, EventName from tblEvent where CountryId=7
 select EventDate, EventName from tblEvent where CountryId=7 and (year(EventDate) between 1940 and 1949)
 
 --Write a query which uses a cursor to step through the trainers one by one in alphabetical order, printing out the details for each
---use Training
+use Training
 --
 --
 --
@@ -2859,7 +2853,7 @@ else
 end
 go
 
-exec usp_GooglySites 3
+exec usp_GooglySites 4
 
 /*Create a stored procedure called usp_Schedules which takes two parameters:
 From date for searching (if not passed in, this should take the default value 1st January 1990)
@@ -3116,7 +3110,6 @@ go
 alter table tblPerson add Importance int
 go
 begin tran
-set nocount on
 drop table if exists #temp
 select tblPerson.PersonId, count(tblDelegate.DelegateId) 'Count', (case when count(tblDelegate.DelegateId)<=1 then 10 when count(tblDelegate.DelegateId)<=4 then 20 else 30 end) 'Importance'
 into #temp from tblPerson left outer join tblDelegate on tblPerson.Personid=tblDelegate.PersonId group by tblPerson.Personid
